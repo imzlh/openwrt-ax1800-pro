@@ -1,0 +1,7 @@
+* text=auto eol=lf
+# Unified diff context markers are significant whitespace.
+*.patch whitespace=-blank-at-eol,-space-before-tab
+*.bin -text
+*.gz -text
+*.xz -text
+*.png -text

@@ -1,0 +1,78 @@
+#!/bin/sh
+
+# This generated UCI config is included in normal sysupgrade backups.
+# Preserve user preferences when upgrading from an earlier project build.
+if [ "$(uci -q get project_settings.defaults.applied)" = '1' ]; then
+	exit 0
+fi
+
+uci -q get luci.main >/dev/null || exit 1
+uci -q get 'system.@system[0]' >/dev/null || exit 1
+uci -q get network.lan >/dev/null || exit 1
+if ! uci -q get 'argon.@global[0]' >/dev/null; then
+	touch /etc/config/argon || exit 1
+	uci set argon.global='global' || exit 1
+fi
+
+uci set luci.main.lang='zh_cn' || exit 1
+uci set luci.main.mediaurlbase='/luci-static/argon' || exit 1
+uci set 'argon.@global[0].mode=dark' || exit 1
+uci set 'system.@system[0].timezone=CST-8' || exit 1
+uci set 'system.@system[0].zonename=Asia/Shanghai' || exit 1
+uci set network.lan.proto='static' || exit 1
+uci set network.lan.ipaddr='192.168.10.1' || exit 1
+uci set network.lan.netmask='255.255.255.0' || exit 1
+uci commit luci || exit 1
+uci commit argon || exit 1
+uci commit system || exit 1
+uci commit network || exit 1
+
+# ath11k may still be probing after boot's kmodloader. Generate the upstream
+# defaults and wait for both bands before marking this script as applied.
+# Upstream disables each default wifi-iface, so enabling only radios is not enough.
+attempt=0
+radio_2g=
+radio_5g=
+while [ "$attempt" -lt 30 ]; do
+	wifi config || exit 1
+	radios=$(uci -q show wireless | sed -n 's/^\(wireless\.[^=]*\)=wifi-device$/\1/p')
+	for radio in $radios; do
+		iface="wireless.default_${radio#wireless.}"
+		[ "$(uci -q get "$iface")" = 'wifi-iface' ] || continue
+		[ "$(uci -q get "$iface.device")" = "${radio#wireless.}" ] || continue
+		case "$(uci -q get "$radio.band")" in
+			2g) radio_2g=$radio ;;
+			5g) radio_5g=$radio ;;
+		esac
+	done
+	[ -n "$radio_2g" ] && [ -n "$radio_5g" ] && break
+	attempt=$((attempt + 1))
+	[ "$attempt" -ge 30 ] || sleep 1
+done
+if [ -z "$radio_2g" ] || [ -z "$radio_5g" ]; then
+	echo 'Project defaults: waiting for both Wi-Fi bands; retry on next boot.' >&2
+	exit 1
+fi
+
+for radio in "$radio_2g" "$radio_5g"; do
+	iface="wireless.default_${radio#wireless.}"
+	uci set "$radio.disabled=0" || exit 1
+	uci set "$iface.disabled=0" || exit 1
+	uci set "$iface.network=lan" || exit 1
+	uci set "$iface.mode=ap" || exit 1
+	uci set "$iface.ssid=OpenWrt" || exit 1
+	uci set "$iface.encryption=none" || exit 1
+	uci set "$iface.key=" || exit 1
+done
+uci commit wireless || exit 1
+
+touch /etc/config/project_settings || exit 1
+uci set project_settings.defaults='settings' || exit 1
+uci set project_settings.defaults.applied='1' || exit 1
+if ! uci commit project_settings; then
+	# boot commits all pending UCI changes even when a defaults script fails.
+	uci -q revert project_settings
+	exit 1
+fi
+
+exit 0
