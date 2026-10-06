@@ -3,9 +3,21 @@ name: Build AX1800 Pro
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/**', 'config/**', 'files/**', 'patches/**', 'patches-25/**', 'scripts/**', 'sources*.lock.json']
+    paths:
+      - '.github/actions/**'
+      - '.github/workflows/**'
+      - 'config/**'
+      - 'files/**'
+      - 'patches/**'
+      - 'scripts/**'
+      - 'sources.lock.json'
   workflow_dispatch:
     inputs:
+      release:
+        description: 'OpenWrt 版本系列'
+        type: choice
+        default: all
+        options: [all, '24.10', '25.12']
       jobs:
         description: '编译并发数'
         type: choice
@@ -13,38 +25,50 @@ on:
         options: [auto, '2', '3', '4', '8']
 
 permissions:
-  contents: write
+  contents: read
 
 defaults:
   run:
     shell: bash
 
 concurrency:
-  group: ax1800pro-${{ github.ref }}
+  group: ax1800pro-${{ github.ref }}-${{ inputs.release || 'all' }}
   cancel-in-progress: false
 
 jobs:
+  matrix:
+    name: Validate release configuration
+    runs-on: ubuntu-24.04
+    outputs:
+      releases: ${{ steps.releases.outputs.matrix }}
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Read releases from source lock
+        id: releases
+        env:
+          REQUESTED_RELEASE: ${{ inputs.release || 'all' }}
+        run: |
+          python3 scripts/project.py validate
+          matrix=$(python3 scripts/project.py matrix --release "$REQUESTED_RELEASE")
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   build:
     name: OpenWrt ${{ matrix.version }}
+    needs: matrix
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - version: 24.10.8
-            source_lock: sources.lock.json
-            patch_dir: patches
-            commit: 0b795ce79e23b553aa184080c390f9ce92a2b6d4
-          - version: 25.12.5
-            source_lock: sources-25.lock.json
-            patch_dir: patches-25
-            commit: f0a60eee2fe051741c643ea6118718aae1ef17fb
+      matrix: ${{ fromJSON(needs.matrix.outputs.releases) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 360
+    permissions:
+      contents: write
     env:
       TZ: Asia/Shanghai
+      SERIES: ${{ matrix.series }}
       VERSION: ${{ matrix.version }}
-      SOURCE_LOCK: ${{ matrix.source_lock }}
-      PATCH_DIR: ${{ matrix.patch_dir }}
+      SOURCE_DIR: ${{ github.workspace }}/openwrt-${{ matrix.version }}
+      TARGET_DIR: ${{ github.workspace }}/openwrt-${{ matrix.version }}/bin/targets/qualcommax/ipq60xx
       REQUESTED_JOBS: ${{ inputs.jobs || 'auto' }}
       CCACHE_DIR: ${{ github.workspace }}/openwrt-${{ matrix.version }}/.ccache
       CCACHE_MAXSIZE: 3G
@@ -55,87 +79,103 @@ jobs:
 
       - name: Select jobs and check disk
         run: |
-          case "$REQUESTED_JOBS" in auto) jobs=$(nproc);; 2|3|4|8) jobs=$REQUESTED_JOBS;; *) exit 1;; esac
+          case "$REQUESTED_JOBS" in
+            auto) jobs=$(nproc) ;;
+            2|3|4|8) jobs=$REQUESTED_JOBS ;;
+            *) exit 1 ;;
+          esac
           echo "BUILD_JOBS=$jobs" >> "$GITHUB_ENV"
-          required=$((25 * 1024 * 1024)); available=$(df --output=avail "$GITHUB_WORKSPACE" | tail -n1)
+          required=$((25 * 1024 * 1024))
+          available=$(df --output=avail "$GITHUB_WORKSPACE" | tail -n1)
           if (( available < required )); then
-            for d in /usr/local/lib/android /usr/share/dotnet /opt/ghc; do sudo rm -rf -- "$d"; available=$(df --output=avail "$GITHUB_WORKSPACE" | tail -n1); (( available >= required )) && break; done
+            for directory in /usr/local/lib/android /usr/share/dotnet /opt/ghc; do
+              sudo rm -rf -- "$directory"
+              available=$(df --output=avail "$GITHUB_WORKSPACE" | tail -n1)
+              if (( available >= required )); then break; fi
+            done
           fi
           (( available >= required )) || { df -h; exit 1; }
 
       - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libelf-dev libncurses-dev libssl-dev python3 python3-setuptools python3-dev rsync swig unzip zlib1g-dev file wget curl ca-certificates subversion patch diffutils tar gzip bzip2 xz-utils zstd cpio time xsltproc libxml-parser-perl
+        uses: ./.github/actions/setup-openwrt
 
       - name: Prepare isolated source tree
         run: |
-          set -o pipefail
-          test -f "$SOURCE_LOCK"
-          test -d "$PATCH_DIR"
-          compgen -G "$PATCH_DIR/*.patch" >/dev/null
           mkdir -p artifacts/logs
-          bash scripts/prepare.sh "openwrt-${VERSION}" "$SOURCE_LOCK" "$PATCH_DIR" 2>&1 | tee artifacts/logs/prepare.log
+          bash scripts/prepare.sh "$SOURCE_DIR" --release "$SERIES" 2>&1 | tee artifacts/logs/prepare.log
 
       - name: Restore download cache
         continue-on-error: true
         id: dl
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: openwrt-${{ matrix.version }}/dl
-          key: openwrt-dl-v3-${{ matrix.version }}-${{ hashFiles(matrix.source_lock) }}
-          restore-keys: openwrt-dl-v3-${{ matrix.version }}-
+          path: ${{ env.SOURCE_DIR }}/dl
+          key: ${{ runner.os }}-openwrt-dl-v4-${{ matrix.series }}-${{ matrix.version }}-${{ hashFiles('sources.lock.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ${{ runner.os }}-openwrt-dl-v4-${{ matrix.series }}-${{ matrix.version }}-${{ hashFiles('sources.lock.json') }}-
 
       - name: Restore compiler cache
         continue-on-error: true
         id: cc
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: openwrt-${{ matrix.version }}/.ccache
-          key: openwrt-ccache-v3-${{ matrix.version }}-${{ hashFiles(matrix.source_lock) }}
-          restore-keys: openwrt-ccache-v3-${{ matrix.version }}-
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-openwrt-ccache-v4-${{ matrix.series }}-${{ matrix.version }}-${{ hashFiles('sources.lock.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ${{ runner.os }}-openwrt-ccache-v4-${{ matrix.series }}-${{ matrix.version }}-${{ hashFiles('sources.lock.json') }}-
 
       - name: Download sources
         run: |
-          set -o pipefail
-          make -C "openwrt-${VERSION}" download -j8 V=s 2>&1 | tee artifacts/logs/download.log || make -C "openwrt-${VERSION}" download -j1 V=s 2>&1 | tee artifacts/logs/download-retry.log
+          if ! make -C "$SOURCE_DIR" download -j8 V=s 2>&1 | tee artifacts/logs/download.log; then
+            make -C "$SOURCE_DIR" download -j1 V=s 2>&1 | tee artifacts/logs/download-retry.log
+          fi
 
       - name: Save download cache
         if: always() && steps.dl.outputs.cache-primary-key != ''
         continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          path: openwrt-${{ matrix.version }}/dl
+          path: ${{ env.SOURCE_DIR }}/dl
           key: ${{ steps.dl.outputs.cache-primary-key }}
 
       - name: Compile firmware
         run: |
-          set -o pipefail
-          make -C "openwrt-${VERSION}" -j"$BUILD_JOBS" BUILD_LOG=1 2>&1 | tee artifacts/logs/build.log || make -C "openwrt-${VERSION}" -j1 V=s BUILD_LOG=1 2>&1 | tee artifacts/logs/build-retry.log
+          if ! make -C "$SOURCE_DIR" -j"$BUILD_JOBS" BUILD_LOG=1 2>&1 | tee artifacts/logs/build.log; then
+            make -C "$SOURCE_DIR" -j1 V=s BUILD_LOG=1 2>&1 | tee artifacts/logs/build-retry.log
+          fi
 
       - name: Save compiler cache
         if: always() && steps.cc.outputs.cache-primary-key != ''
         continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          path: openwrt-${{ matrix.version }}/.ccache
+          path: ${{ env.CCACHE_DIR }}
           key: ${{ steps.cc.outputs.cache-primary-key }}
 
-      - name: Verify firmware and collect metadata
-        if: success()
+      - name: Collect build metadata
+        if: always()
         run: |
-          python3 scripts/check-config.py "openwrt-${VERSION}/.config"
-          python3 scripts/check-firmware.py "openwrt-${VERSION}/bin/targets/qualcommax/ipq60xx"
-          mkdir -p artifacts/firmware
-          cp -a "openwrt-${VERSION}/bin/targets/qualcommax/ipq60xx/." artifacts/firmware/
-          python3 scripts/build-info.py "openwrt-${VERSION}" artifacts "$SOURCE_LOCK" "$PATCH_DIR"
+          mkdir -p artifacts/logs
+          python3 scripts/build-info.py "$SOURCE_DIR" artifacts --release "$SERIES" 2>&1 | tee artifacts/logs/metadata.log
 
-      - name: Upload firmware
-        if: success()
+      - name: Verify firmware and stage release attachments
+        run: |
+          python3 scripts/check-config.py "$SOURCE_DIR/.config" --release "$SERIES"
+          python3 scripts/check-firmware.py "$TARGET_DIR" --release "$SERIES"
+          python3 scripts/collect-release.py "$TARGET_DIR" artifacts/release --release "$SERIES" --build-info artifacts/build-info.json
+
+      - name: Upload firmware and release attachments
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: openwrt-${{ matrix.version }}-jdcloud-ax1800pro-${{ github.run_number }}
-          path: artifacts/firmware/
+          name: openwrt-${{ matrix.version }}-jdcloud-ax1800pro-${{ github.run_number }}-${{ github.run_attempt }}
+          path: artifacts/release/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload matching kernel packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: packages-${{ matrix.version }}-${{ github.run_number }}-${{ github.run_attempt }}
+          path: ${{ env.TARGET_DIR }}/packages/
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -144,26 +184,24 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: build-info-${{ matrix.version }}-${{ github.run_number }}
+          name: build-info-${{ matrix.version }}-${{ github.run_number }}-${{ github.run_attempt }}
           path: |
             artifacts/logs/
             artifacts/build-info.json
             artifacts/build.config
             artifacts/feeds.conf.default
             artifacts/local-changes.patch
-            openwrt-${{ matrix.version }}/logs/
+            ${{ env.SOURCE_DIR }}/logs/
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Publish release
+      - name: Publish prerelease
         if: success() && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail; shopt -s nullglob
-          image=(artifacts/firmware/*jdcloud_re-ss-01*sysupgrade.bin); manifest=(artifacts/firmware/*jdcloud_re-ss-01*.manifest)
-          [[ ${#image[@]} == 1 && ${#manifest[@]} == 1 ]]
-          mkdir -p artifacts/release
-          cp "${image[0]}" "${manifest[0]}" artifacts/firmware/profiles.json artifacts/build-info.json artifacts/release/
-          (cd artifacts/release && sha256sum ./*.bin > SHA256SUMS)
-          gh release create "ax1800pro-v${VERSION}-build${GITHUB_RUN_NUMBER}" artifacts/release/* --target "$GITHUB_SHA" --title "AX1800 Pro OpenWrt ${VERSION} (build ${GITHUB_RUN_NUMBER})" --notes "JDCloud RE-SS-01，OpenWrt ${VERSION}，eMMC ext4 Overlay。"
+          gh release create "ax1800pro-v${VERSION}-build${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}" artifacts/release/* \
+            --target "$GITHUB_SHA" \
+            --title "AX1800 Pro OpenWrt ${VERSION} (build ${GITHUB_RUN_NUMBER}, attempt ${GITHUB_RUN_ATTEMPT})" \
+            --prerelease \
+            --notes "JDCloud RE-SS-01，OpenWrt ${VERSION}，eMMC ext4 Overlay。包含 sysupgrade 和 factory 镜像，刷写方式请参阅仓库 README。"

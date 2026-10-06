@@ -3,15 +3,14 @@ name: Check project
 on:
   push:
     paths:
+      - '.github/actions/**'
       - '.github/workflows/**'
       - 'scripts/**'
       - 'tests/**'
       - 'config/**'
       - 'files/**'
       - 'patches/**'
-      - 'patches-25/**'
       - 'sources.lock.json'
-      - 'sources-25.lock.json'
   pull_request:
   workflow_dispatch:
 
@@ -24,9 +23,19 @@ defaults:
 
 jobs:
   check:
+    name: Lint and validate project
     runs-on: ubuntu-24.04
+    outputs:
+      releases: ${{ steps.releases.outputs.matrix }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+
       - name: Check GitHub Actions workflows
         env:
           ACTIONLINT_VERSION: 1.7.12
@@ -39,6 +48,7 @@ jobs:
           echo "$ACTIONLINT_SHA256  $archive" | sha256sum --check
           tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
           "$RUNNER_TEMP/actionlint" -color
+
       - name: Check script syntax and validators
         run: |
           bash -n scripts/prepare.sh
@@ -46,7 +56,55 @@ jobs:
           shellcheck scripts/prepare.sh files/etc/uci-defaults/99-project-settings
           python3 -m compileall -q scripts tests
           python3 -m unittest discover -s tests -v
-          python3 -m json.tool sources.lock.json >/dev/null
-          python3 -m json.tool sources-25.lock.json >/dev/null
-          test -n "$(find patches -maxdepth 1 -name '*.patch' -print -quit)"
-          test -n "$(find patches-25 -maxdepth 1 -name '*.patch' -print -quit)"
+          python3 scripts/project.py validate
+
+      - name: Read all releases from source lock
+        id: releases
+        run: |
+          matrix=$(python3 scripts/project.py matrix --release all)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  prepare:
+    name: Prepare OpenWrt ${{ matrix.version }}
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.check.outputs.releases) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      SERIES: ${{ matrix.series }}
+      SOURCE_DIR: ${{ github.workspace }}/openwrt-${{ matrix.version }}
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install build dependencies
+        uses: ./.github/actions/setup-openwrt
+
+      - name: Apply patches, install pinned feeds and resolve configuration
+        run: |
+          mkdir -p artifacts/logs
+          bash scripts/prepare.sh "$SOURCE_DIR" --release "$SERIES" 2>&1 | tee artifacts/logs/prepare.log
+          python3 scripts/check-config.py "$SOURCE_DIR/.config" --release "$SERIES"
+
+      - name: Apply fstools source patches
+        run: |
+          make -C "$SOURCE_DIR" package/system/fstools/prepare V=s 2>&1 | tee artifacts/logs/fstools-prepare.log
+
+      - name: Collect preparation metadata
+        if: always()
+        run: |
+          mkdir -p artifacts/logs
+          python3 scripts/build-info.py "$SOURCE_DIR" artifacts --release "$SERIES" 2>&1 | tee artifacts/logs/metadata.log
+
+      - name: Upload preparation logs and metadata
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: prepare-info-${{ matrix.version }}-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            artifacts/
+            ${{ env.SOURCE_DIR }}/logs/
+          if-no-files-found: warn
+          retention-days: 14

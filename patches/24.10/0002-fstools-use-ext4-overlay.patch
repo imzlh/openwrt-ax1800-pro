@@ -1,0 +1,63 @@
+From: OpenWrt AX1800 Pro build project
+Subject: [PATCH] fstools: use ext4 for new RE-SS-01 overlays on OpenWrt 24.10
+
+The image includes ext4 tools and kernel support. Keep detection of
+existing filesystems, but use ext4 when initializing a new eMMC overlay.
+This patch matches fstools 408c2cc48e6694446c89da7f8121b399063e1067.
+
+diff --git a/package/system/fstools/patches/100-force-ext4-overlay.patch b/package/system/fstools/patches/100-force-ext4-overlay.patch
+new file mode 100644
+--- /dev/null
++++ b/package/system/fstools/patches/100-force-ext4-overlay.patch
+@@ -0,0 +1,51 @@
++diff --git a/libfstools/common.c b/libfstools/common.c
++--- a/libfstools/common.c
+++++ b/libfstools/common.c
++@@ -93,24 +93,6 @@
++ 	return FS_NONE;
++ }
++ 
++-static bool use_f2fs(struct volume *v, uint64_t offset, const char *bdev)
++-{
++-	uint64_t size = 0;
++-	bool ret = false;
++-	int fd;
++-
++-	fd = open(bdev, O_RDONLY);
++-	if (fd < 0)
++-		return false;
++-
++-	if (ioctl(fd, BLKGETSIZE64, &size) == 0)
++-		ret = size - offset > F2FS_MINSIZE;
++-
++-	close(fd);
++-
++-	return ret;
++-}
++-
++ int block_volume_format(struct volume *v, uint64_t offset, const char *bdev)
++ {
++ 	int ret = 0;
++@@ -119,6 +101,9 @@
++ 	int fd;
++ 	__u32 deadc0de;
++ 	size_t sz;
+++
+++	(void)offset;
+++	(void)bdev;
++ 
++ 	switch (volume_identify(v)) {
++ 	case FS_DEADCODE:
++@@ -162,10 +147,8 @@
++ 		}
++ do_format:
++ 		ULOG_INFO("overlay filesystem in %s has not been formatted yet\n", v->blk);
++-		if (use_f2fs(v, offset, bdev))
++-			snprintf(str, sizeof(str), "mkfs.f2fs -q -f -l rootfs_data %s", v->blk);
++-		else
++-			snprintf(str, sizeof(str), "mkfs.ext4 -q -F -L rootfs_data %s", v->blk);
+++		/* This image ships ext4 support for the eMMC overlay. */
+++		snprintf(str, sizeof(str), "mkfs.ext4 -q -F -L rootfs_data %s", v->blk);
++ 
++ 		ret = system(str);
++ 		break;

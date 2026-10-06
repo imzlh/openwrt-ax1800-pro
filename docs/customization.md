@@ -1,6 +1,6 @@
 # 精简配置与默认界面
 
-基础源码使用官方 OpenWrt v24.10.8（Linux 6.6），保留设备 profile 默认选择的网卡、无线、闪存等驱动，包括官方 `kmod-qca-nss-dp` 以太网驱动；虽然名字带有 NSS，这个包负责网口工作。项目不引入额外的 NSS 加速栈、ECM 或相关加速补丁。设备移植方式见项目 README。
+基础源码使用官方 OpenWrt 24.10.8（Linux 6.6）或 25.12.5（Linux 6.12），保留设备 profile 默认选择的网卡、无线、闪存等驱动，包括官方 `kmod-qca-nss-dp` 以太网驱动；虽然名字带有 NSS，这个包负责网口工作。项目不引入额外的 NSS 加速栈、ECM 或相关加速补丁。设备移植方式见项目 README。
 
 ## 包选择
 
@@ -14,11 +14,11 @@
 
 这里直接选择 LuCI 所需模块，没有使用 `luci`、`luci-light` 或 `luci-ssl` 集合：这些集合会带入 Bootstrap 主题，部分还会带入网页软件包管理器。HTTPS 的依赖与官方 `luci-ssl` 相同。
 
-调整包时修改配置片段；构建中的 `make defconfig` 会自动补齐依赖。不要删除设备 profile 自带的驱动及 ext4 初始化所需的 `e2fsprogs`、`kmod-fs-ext4`。添加插件前确认它支持 OpenWrt 24.10 / 当前 LuCI，且会增加相应依赖。
+调整两版通用的软件包时修改 `config/ax1800pro.config`，版本差异放在 `config/24.10.config` / `config/25.12.config`；构建中的 `make defconfig` 会自动补齐依赖。不要删除设备 profile 自带的驱动及 ext4 初始化所需的 `e2fsprogs`、`kmod-fs-ext4`。添加插件前分别确认它支持两个版本的 OpenWrt / LuCI，且会增加相应依赖。
 
 ## Argon 与暗色设置
 
-官方 LuCI feed 不包含 Argon。本项目只额外接入 [jerrykuku/luci-theme-argon](https://github.com/jerrykuku/luci-theme-argon)，固定提交为 [`23c3e525578374d6b20f5e7b93d27874cd01a252`](https://github.com/jerrykuku/luci-theme-argon/tree/23c3e525578374d6b20f5e7b93d27874cd01a252)（2.4.7）。该提交的依赖声明同时覆盖 `opkg` 与 APK；本固件使用 `opkg`。
+官方 LuCI feed 不包含 Argon。本项目只额外接入 [jerrykuku/luci-theme-argon](https://github.com/jerrykuku/luci-theme-argon)，固定提交为 [`23c3e525578374d6b20f5e7b93d27874cd01a252`](https://github.com/jerrykuku/luci-theme-argon/tree/23c3e525578374d6b20f5e7b93d27874cd01a252)（2.4.7）。该提交的依赖声明同时覆盖 `opkg` 与 APK；24.10 使用 `opkg`，25.12 使用 `apk`。
 
 [`files/etc/config/argon`](../files/etc/config/argon) 设置 `global` 段的 `mode='dark'`。主题直接读取这个文件，所以无需安装 `luci-app-argon-config`。主题自身依赖的 `wget-any`、`jsonfilter` 由编译系统补齐。
 
