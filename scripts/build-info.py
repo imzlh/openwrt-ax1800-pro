@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 project = pathlib.Path(__file__).resolve().parent.parent
 source = pathlib.Path(sys.argv[1]).resolve()
 output = pathlib.Path(sys.argv[2]).resolve()
+lock_file = pathlib.Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else project / "sources.lock.json"
+patch_dir = pathlib.Path(sys.argv[4]).resolve() if len(sys.argv) > 4 else project / "patches"
 output.mkdir(parents=True, exist_ok=True)
 
 
@@ -26,13 +28,13 @@ def git(path, *args):
 info = {
     "recorded_at": datetime.now(timezone.utc).isoformat(),
     "project_commit": git(project, "rev-parse", "HEAD"),
-    "locked_sources": json.loads((project / "sources.lock.json").read_text()),
+    "locked_sources": json.loads(lock_file.read_text()),
     "openwrt_commit": git(source, "rev-parse", "HEAD"),
     "argon_commit": git(source / "package/luci-theme-argon", "rev-parse", "HEAD"),
     "feeds": {},
     "patches_sha256": {
         p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-        for p in sorted((project / "patches").glob("*.patch"))
+        for p in sorted(patch_dir.glob("*.patch"))
     },
     "github_run": os.environ.get("GITHUB_RUN_ID"),
 }

@@ -5,13 +5,22 @@ set -euo pipefail
 PROJECT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 SOURCE_DIR=${1:-"$PROJECT_DIR/openwrt"}
 SOURCE_DIR=$(realpath -m -- "$SOURCE_DIR")
+LOCK_FILE=${2:-"$PROJECT_DIR/sources.lock.json"}
+PATCH_DIR=${3:-"$PROJECT_DIR/patches"}
+[[ "$LOCK_FILE" = /* ]] || LOCK_FILE="$PROJECT_DIR/$LOCK_FILE"
+[[ "$PATCH_DIR" = /* ]] || PATCH_DIR="$PROJECT_DIR/$PATCH_DIR"
+LOCK_FILE=$(realpath -m -- "$LOCK_FILE")
+PATCH_DIR=$(realpath -m -- "$PATCH_DIR")
+
+[[ -f "$LOCK_FILE" ]] || { echo "Missing source lock file: $LOCK_FILE" >&2; exit 1; }
+[[ -d "$PATCH_DIR" ]] || { echo "Missing patch directory: $PATCH_DIR" >&2; exit 1; }
 
 if [[ -e "$SOURCE_DIR" ]]; then
     echo "Source directory already exists: $SOURCE_DIR. Choose a new empty path." >&2
     exit 1
 fi
 
-readarray -t SOURCES < <(python3 - "$PROJECT_DIR/sources.lock.json" <<'PY'
+readarray -t SOURCES < <(python3 - "$LOCK_FILE" <<'PY'
 import json, re, sys
 lock = json.load(open(sys.argv[1], encoding="utf-8"))
 for name in ("openwrt", "argon"):
@@ -51,7 +60,7 @@ for line in feeds:
 PY
 
 shopt -s nullglob
-patches=("$PROJECT_DIR"/patches/*.patch)
+patches=("$PATCH_DIR"/*.patch)
 [[ ${#patches[@]} -gt 0 ]] || { echo 'Missing device support patches' >&2; exit 1; }
 for patch in "${patches[@]}"; do
     git apply --check "$patch"

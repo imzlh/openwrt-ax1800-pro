@@ -46,6 +46,9 @@ jobs:
       SOURCE_LOCK: ${{ matrix.source_lock }}
       PATCH_DIR: ${{ matrix.patch_dir }}
       REQUESTED_JOBS: ${{ inputs.jobs || 'auto' }}
+      CCACHE_DIR: ${{ github.workspace }}/openwrt-${{ matrix.version }}/.ccache
+      CCACHE_MAXSIZE: 3G
+      CCACHE_COMPILERCHECK: content
     steps:
       - name: Checkout project
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,14 +70,15 @@ jobs:
 
       - name: Prepare isolated source tree
         run: |
+          set -o pipefail
+          test -f "$SOURCE_LOCK"
+          test -d "$PATCH_DIR"
+          compgen -G "$PATCH_DIR/*.patch" >/dev/null
           mkdir -p artifacts/logs
-          cp "$SOURCE_LOCK" .active-lock.json
-          rm -rf .active-patches patches
-          cp -a "$PATCH_DIR" .active-patches
-          mv .active-patches patches
-          bash scripts/prepare.sh "openwrt-${VERSION}" 2>&1 | tee artifacts/logs/prepare.log
+          bash scripts/prepare.sh "openwrt-${VERSION}" "$SOURCE_LOCK" "$PATCH_DIR" 2>&1 | tee artifacts/logs/prepare.log
 
       - name: Restore download cache
+        continue-on-error: true
         id: dl
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -83,6 +87,7 @@ jobs:
           restore-keys: openwrt-dl-v3-${{ matrix.version }}-
 
       - name: Restore compiler cache
+        continue-on-error: true
         id: cc
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -97,6 +102,7 @@ jobs:
 
       - name: Save download cache
         if: always() && steps.dl.outputs.cache-primary-key != ''
+        continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: openwrt-${{ matrix.version }}/dl
@@ -109,6 +115,7 @@ jobs:
 
       - name: Save compiler cache
         if: always() && steps.cc.outputs.cache-primary-key != ''
+        continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: openwrt-${{ matrix.version }}/.ccache
@@ -121,7 +128,7 @@ jobs:
           python3 scripts/check-firmware.py "openwrt-${VERSION}/bin/targets/qualcommax/ipq60xx"
           mkdir -p artifacts/firmware
           cp -a "openwrt-${VERSION}/bin/targets/qualcommax/ipq60xx/." artifacts/firmware/
-          python3 scripts/build-info.py "openwrt-${VERSION}" artifacts
+          python3 scripts/build-info.py "openwrt-${VERSION}" artifacts "$SOURCE_LOCK" "$PATCH_DIR"
 
       - name: Upload firmware
         if: success()

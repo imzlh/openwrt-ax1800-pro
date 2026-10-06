@@ -9,7 +9,9 @@ on:
       - 'config/**'
       - 'files/**'
       - 'patches/**'
+      - 'patches-25/**'
       - 'sources.lock.json'
+      - 'sources-25.lock.json'
   pull_request:
   workflow_dispatch:
 
@@ -45,3 +47,6 @@ jobs:
           python3 -m compileall -q scripts tests
           python3 -m unittest discover -s tests -v
           python3 -m json.tool sources.lock.json >/dev/null
+          python3 -m json.tool sources-25.lock.json >/dev/null
+          test -n "$(find patches -maxdepth 1 -name '*.patch' -print -quit)"
+          test -n "$(find patches-25 -maxdepth 1 -name '*.patch' -print -quit)"
