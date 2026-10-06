@@ -41,34 +41,6 @@
 
 下载附件后解压，升级文件为 `*jdcloud_re-ss-01*sysupgrade.bin`。`initramfs` 用于临时启动或恢复，不作为常规升级文件。附件保留 30 天，日志保留 14 天，建议自行保存需要的版本。
 
-## 你当前的 KWRT / 已扩容分区
-
-本项目沿用亚瑟社区适配的 eMMC 命名分区与升级方式，**不会重新分区或执行扩容**。曾经扩容并不能单独证明布局兼容；刷入前应核对 [硬件说明](docs/hardware.md) 中的分区名、内核空间和启动方式。
-
-先保存 KWRT 配置备份，并在当前系统中记录以下只读信息：
-
-```sh
-ubus call system board
-cat /tmp/sysinfo/board_name
-cat /proc/partitions
-cat /proc/cmdline
-block info
-# 如果系统安装了 lsblk：
-lsblk -o NAME,SIZE,PARTLABEL,FSTYPE,MOUNTPOINTS
-```
-
-下载固件并核对 SHA256 后，可以在当前 KWRT 上先运行兼容性检查（不会刷写）：
-
-```sh
-sysupgrade -T /tmp/实际的-sysupgrade.bin
-```
-
-`sysupgrade -T` 只验证现有升级脚本能检查的部分，不能替代分区布局和启动链核对。若报机型、兼容版本或镜像格式不匹配，应先查明原因，不使用 `-F` 强制跳过。
-
-首次从 KWRT 迁移建议**不保留配置**，事先记下拨号、无线和 LAN 设置。不同固件的网络、驱动和插件配置可能不兼容。不保留配置会清除现有设置；这里不自动执行刷写。
-
-全新配置的 LAN 地址为 **`192.168.10.1`**（网段 `192.168.10.0/24`），DHCP 自动分配 `192.168.10.x` 地址。2.4 GHz 和 5 GHz 无线默认开启，名称均为 **`OpenWrt`**，按定制要求设置为**无密码开放网络**。可用网线或 Wi-Fi 连接后访问管理页，设置管理员密码；无线密码可随后在 LuCI 中修改。保留本项目配置升级时保留原网络设置。主题、时区及迁移行为见 [自定义说明](docs/customization.md)。
-
 ## 修改配置
 
 - [config/ax1800pro.config](config/ax1800pro.config)：设备和软件包选择；修改插件主要改这里。
@@ -79,7 +51,7 @@ sysupgrade -T /tmp/实际的-sysupgrade.bin
 
 构建会在 `make defconfig` 后确认设备没有被 Kconfig 丢弃，并检查驱动、主题、中文和 HTTPS 依赖。发布附件前还会验证实际镜像校验和、设备元数据与软件包清单，阻止缺少目标镜像或混入 NSS 加速包的结果。
 
-软件包默认使用 OpenWrt 官方仓库。自编译内核与官方发行镜像的内核 ABI 不保证一致；安装额外内核模块时，优先使用同次构建附件中的目标包，或修改配置后重新编译。OpenWrt 24.10 使用 `opkg`，不要混用 25.12 / KWRT 的软件源或配置备份。此次跨版本切换建议使用 `sysupgrade -n`，先保存所需设置。
+软件包默认使用 OpenWrt 官方仓库。自编译内核与官方发行镜像的内核 ABI 不保证一致；安装额外内核模块时，优先使用同次构建附件中的目标包，或修改配置后重新编译。OpenWrt 24.10 使用 `opkg`，不要混用 25.12 的软件源或配置备份。此次跨版本切换建议使用 `sysupgrade -n`，先保存所需设置。
 
 当前 25.12 固件若显示 `overlayfs:/tmp/root`，配置修改仍只在 RAM 中。`/dev/loop0` 可映射到 eMMC 根分区的 SquashFS 尾部，并不代表 RAM；这个设备配置之前漏掉大分区自动格式化所需的 F2FS 工具。本项目现改为 ext4 格式化策略。原因、只读排查、手工修复及新镜像验证见 [Overlay 排查与修复](docs/overlay.md)。
 

@@ -41,7 +41,7 @@ OpenWrt 自带的 `ipq-wifi` 软件包已经固定了 [qca-wireless](https://git
 
 本项目不引入 `qca-nss-drv`、NSS ECM、NSS 客户端或 ath11k NSS offload，也没有启用 NSS 固件节点。不要为了删除包名中的 `nss` 而移除官方网口驱动。
 
-## 已扩容、运行 KWRT 的设备
+## 已扩容、运行 LibWrt等 的设备
 
 本项目只生成 `sysupgrade.bin`，用于已经运行兼容 OpenWrt 系统的设备。它不提供原厂刷入镜像，也不执行扩容或重分区。
 
@@ -53,9 +53,7 @@ OpenWrt 自带的 `ipq-wifi` 软件包已经固定了 [qca-wireless](https://git
 
 升级函数按标签查找分区，不写死 `/dev/mmcblk0p20` 一类分区编号，也不重建 GPT。设备树沿用现有 U-Boot 的启动参数和 MAC 地址注入方式；未更改 `bootargs`、启动槽位或 U-Boot 环境。`ethernet1` 至 `ethernet4` 别名与参考设备树一致。参考源码的 `02_network` 没有 RE-SS-01 的另一个 MAC 提取分支。
 
-“已经扩容”并不唯一确定分区布局。刷入前按 [README 中的只读命令](../README.md#你当前的-kwrt--已扩容分区) 核对设备标识、分区标签与容量，并查看 `cat /proc/cmdline` 核对当前启动参数。若当前系统使用了自定义启动槽、重命名分区，或把 overlay 放到独立分区，需要先核对与上述布局是否一致。不要使用强制升级绕过设备不匹配提示。
-
-从 KWRT 或 25.12 切换时应不保留旧配置，以便重新生成网络、无线和 LuCI 配置；尤其不要直接迁移旧系统的挂载配置。升级时仍写入 `0:HLOS` 与 `rootfs`，正常首次启动只会在被选中的 Overlay 区域创建 ext4；不会自动格式化其他 eMMC 分区、搬迁 overlay 或扩容。若 `/proc/cmdline` 让 `fstools` 选中独立 `rootfs_data` 分区，则该分区可能被初始化，刷入前应先核对并备份。详细判断见 [Overlay 排查与修复](overlay.md)。
+从 LibWrt 或 25.12 切换时应不保留旧配置，以便重新生成网络、无线和 LuCI 配置；尤其不要直接迁移旧系统的挂载配置。升级时仍写入 `0:HLOS` 与 `rootfs`，正常首次启动只会在被选中的 Overlay 区域创建 ext4；不会自动格式化其他 eMMC 分区、搬迁 overlay 或扩容。若 `/proc/cmdline` 让 `fstools` 选中独立 `rootfs_data` 分区，则该分区可能被初始化，刷入前应先核对并备份。详细判断见 [Overlay 排查与修复](overlay.md)。
 
 ## 验证边界
 

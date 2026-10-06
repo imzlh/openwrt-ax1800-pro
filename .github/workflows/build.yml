@@ -205,7 +205,6 @@ jobs:
           JDCloud RE-SS-01 / AX1800 Pro 测试固件，OpenWrt 24.10.8、Linux 6.6，eMMC ext4 Overlay。
 
           刷入前核对设备型号、分区标签和镜像 SHA256；先执行 `sysupgrade -T`。
-          从 25.12 / KWRT 迁移建议备份设置后使用 `sysupgrade -n`，不要继承旧挂载配置。
           首次启动后确认 `/overlay` 挂载在 eMMC 上，并重启验证设置持久化。
 
           设备与 Overlay 说明见仓库 README 和 docs/overlay.md。此构建尚待真机回归。
