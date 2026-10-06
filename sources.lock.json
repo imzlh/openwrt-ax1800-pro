@@ -1,8 +1,8 @@
 {
   "openwrt": {
     "url": "https://github.com/openwrt/openwrt.git",
-    "version": "25.12.5",
-    "commit": "f0a60eee2fe051741c643ea6118718aae1ef17fb"
+    "version": "24.10.8",
+    "commit": "0b795ce79e23b553aa184080c390f9ce92a2b6d4"
   },
   "argon": {
     "url": "https://github.com/jerrykuku/luci-theme-argon.git",

@@ -11,7 +11,7 @@ REQUIRED = {
     "CONFIG_TARGET_ROOTFS_SQUASHFS", "CONFIG_JSON_OVERVIEW_IMAGE_INFO",
     *(f"CONFIG_PACKAGE_{p}" for p in (
         "kmod-qca-nss-dp", "kmod-ath11k-ahb", "ath11k-firmware-ipq6018",
-        "ipq-wifi-jdcloud_re-ss-01", "kmod-fs-ext4", "losetup",
+        "ipq-wifi-jdcloud_re-ss-01", "e2fsprogs", "kmod-fs-ext4", "losetup",
         "luci-mod-admin-full", "luci-app-firewall", "luci-theme-argon",
         "luci-i18n-base-zh-cn", "luci-i18n-firewall-zh-cn",
         "luci-proto-ipv6", "luci-proto-ppp", "uhttpd", "uhttpd-mod-ubus",

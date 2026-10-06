@@ -12,7 +12,7 @@ config_check = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(config_check)
 
 # OpenWrt appends ABI_VERSION to this runtime package name, while Kconfig
-# retains the source package name. Pinned v25.12.5 ustream-ssl uses 20201210.
+# retains the source package name. Pinned v24.10.8 ustream-ssl uses 20201210.
 RUNTIME_PACKAGE_NAMES = {"libustream-mbedtls": "libustream-mbedtls20201210"}
 
 

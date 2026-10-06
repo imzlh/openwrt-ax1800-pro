@@ -1,6 +1,15 @@
 name: Build AX1800 Pro
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build.yml'
+      - 'config/**'
+      - 'files/**'
+      - 'patches/**'
+      - 'scripts/**'
+      - 'sources.lock.json'
   workflow_dispatch:
     inputs:
       jobs:
@@ -10,7 +19,7 @@ on:
         options: ['auto', '2', '3', '4', '8']
 
 permissions:
-  contents: read
+  contents: write
 
 defaults:
   run:
@@ -26,7 +35,7 @@ jobs:
     timeout-minutes: 360
     env:
       TZ: Asia/Shanghai
-      REQUESTED_JOBS: ${{ inputs.jobs }}
+      REQUESTED_JOBS: ${{ inputs.jobs || 'auto' }}
       CCACHE_DIR: ${{ github.workspace }}/openwrt/.ccache
       CCACHE_MAXSIZE: 3G
       CCACHE_COMPILERCHECK: content
@@ -152,7 +161,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: openwrt-25.12.5-jdcloud-ax1800pro-${{ github.run_number }}
+          name: openwrt-24.10.8-jdcloud-ax1800pro-${{ github.run_number }}
           path: artifacts/firmware/
           if-no-files-found: error
           compression-level: 0
@@ -172,3 +181,42 @@ jobs:
             openwrt/logs/
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Publish verified firmware as a prerelease
+        if: success() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          images=(artifacts/firmware/*jdcloud_re-ss-01*sysupgrade.bin)
+          manifests=(artifacts/firmware/*jdcloud_re-ss-01*.manifest)
+          if (( ${#images[@]} != 1 || ${#manifests[@]} != 1 )); then
+            echo 'Expected exactly one verified sysupgrade image and manifest.' >&2
+            exit 1
+          fi
+          version=$(python3 -c 'import json; print(json.load(open("sources.lock.json"))["openwrt"]["version"])')
+          tag="ax1800pro-v${version}-build${GITHUB_RUN_NUMBER}-attempt${GITHUB_RUN_ATTEMPT}"
+          mkdir -p artifacts/release
+          cp -- "${images[0]}" "${manifests[0]}" \
+            artifacts/firmware/profiles.json artifacts/build-info.json artifacts/release/
+          (cd artifacts/release && sha256sum ./*.bin > SHA256SUMS)
+          cat > artifacts/release-notes.md <<'EOF'
+          JDCloud RE-SS-01 / AX1800 Pro 测试固件，OpenWrt 24.10.8、Linux 6.6，eMMC ext4 Overlay。
+
+          刷入前核对设备型号、分区标签和镜像 SHA256；先执行 `sysupgrade -T`。
+          从 25.12 / KWRT 迁移建议备份设置后使用 `sysupgrade -n`，不要继承旧挂载配置。
+          首次启动后确认 `/overlay` 挂载在 eMMC 上，并重启验证设置持久化。
+
+          设备与 Overlay 说明见仓库 README 和 docs/overlay.md。此构建尚待真机回归。
+          EOF
+          gh release create "$tag" \
+            artifacts/release/*.bin \
+            artifacts/release/*.manifest \
+            artifacts/release/SHA256SUMS \
+            artifacts/release/profiles.json \
+            artifacts/release/build-info.json \
+            --target "$GITHUB_SHA" \
+            --title "AX1800 Pro OpenWrt ${version} (build ${GITHUB_RUN_NUMBER})" \
+            --notes-file artifacts/release-notes.md \
+            --prerelease

@@ -1,6 +1,6 @@
 # 京东亚瑟 AX1800 Pro · OpenWrt Actions
 
-使用 **官方 OpenWrt 25.12.5 源码和官方软件源**，为京东亚瑟 AX1800 Pro（JDCloud RE-SS-01）补充设备支持，通过 GitHub Actions 编译。界面为 **简体中文 + Argon 固定暗色**，只保留基础路由管理功能。
+使用 **官方 OpenWrt 24.10.8 源码和官方软件源**，为京东亚瑟 AX1800 Pro（JDCloud RE-SS-01）补充设备支持，通过 GitHub Actions 编译。界面为 **简体中文 + Argon 固定暗色**，只保留基础路由管理功能。
 
 官方版本尚未收录此设备，所以这是“官方源码 + 社区板级适配”的自编译固件，不是 OpenWrt 官方发布的机型镜像。适配来源和改动范围见 [硬件说明](docs/hardware.md)。
 
@@ -8,7 +8,8 @@
 | --- | --- |
 | 设备 | 京东亚瑟 AX1800 Pro / RE-SS-01；不是京东鲁班 |
 | 编译目标 | `qualcommax/ipq60xx`，`jdcloud_re-ss-01` |
-| 基础系统 | OpenWrt 25.12.5，Linux 6.12 系列，官方 feeds |
+| 基础系统 | OpenWrt 24.10.8，Linux 6.6 系列，官方 feeds |
+| 持久化 Overlay | eMMC 上的 ext4；首次启动由 `fstools` 创建，不使用 RAM 作为正常 Overlay |
 | 界面 | 中文 LuCI、Argon dark、HTTP / HTTPS |
 | 默认网络 | LAN `192.168.10.1/24`；双频 Wi-Fi 开启，SSID 均为 `OpenWrt`，开放无密码 |
 | 保留功能 | WAN / LAN、Wi-Fi、DHCP、DNS、防火墙、IPv6、PPPoE |
@@ -29,12 +30,12 @@
    git push -u origin main
    ```
 
-2. 进入仓库 **Actions → Build AX1800 Pro → Run workflow**。并发数默认 `auto`，自动使用 runner 全部 CPU；出现内存不足时可手动改为 `2`。
+2. 推送到 `main` 且修改构建相关文件时会自动编译；也可进入仓库 **Actions → Build AX1800 Pro → Run workflow** 手动编译。并发数默认 `auto`，自动使用 runner 全部 CPU；出现构建机内存不足时可手动改为 `2`。
 3. 等待构建完成，在该次运行底部的 **Artifacts** 下载：
-   - `openwrt-25.12.5-jdcloud-ax1800pro-运行编号`：设备镜像、校验和、软件包清单及同次编译的目标软件包。
+   - `openwrt-24.10.8-jdcloud-ax1800pro-运行编号`：设备镜像、校验和、软件包清单及同次编译的目标软件包。
    - `build-info-运行编号`：完整配置、来源提交、补丁摘要、编译日志。失败时也会尝试上传。
 
-推送代码只自动运行轻量项目检查；固件编译需要手动触发。工作流只上传构建附件，不自动创建 Release。首次编译通常需要较长时间，具体受 GitHub runner 和上游下载速度影响；任务上限为 6 小时。
+构建和镜像校验全部成功后，`main` 分支的运行会自动创建带唯一构建编号的 **预发布 Release**，附带 sysupgrade 镜像、SHA256、设备 manifest、profiles.json 和来源信息；同次编译的软件包与完整日志继续保存在 Actions Artifacts。失败构建不会发布。首次编译通常需要较长时间，具体受 GitHub runner 和上游下载速度影响；任务上限为 6 小时。
 
 工作流按速度优先配置：并行下载和编译，复用源码下载缓存及 ccache 编译缓存；磁盘空间足够时跳过 SDK 清理，首轮编译减少控制台输出，失败后以单线程详细日志重试。失败构建也会尝试保存缓存，便于下次继续复用。首次构建仍需生成工具链，缓存提速主要体现在后续构建；没有完整构建耗时数据前不承诺固定完成时间。
 
@@ -78,7 +79,9 @@ sysupgrade -T /tmp/实际的-sysupgrade.bin
 
 构建会在 `make defconfig` 后确认设备没有被 Kconfig 丢弃，并检查驱动、主题、中文和 HTTPS 依赖。发布附件前还会验证实际镜像校验和、设备元数据与软件包清单，阻止缺少目标镜像或混入 NSS 加速包的结果。
 
-软件包默认使用 OpenWrt 官方仓库。自编译内核与官方发行镜像的内核 ABI 不保证一致；安装额外内核模块时，优先使用同次构建附件中的目标包，或修改配置后重新编译。OpenWrt 25.12 使用 `apk`，不要混用 KWRT / 其他版本的软件源。
+软件包默认使用 OpenWrt 官方仓库。自编译内核与官方发行镜像的内核 ABI 不保证一致；安装额外内核模块时，优先使用同次构建附件中的目标包，或修改配置后重新编译。OpenWrt 24.10 使用 `opkg`，不要混用 25.12 / KWRT 的软件源或配置备份。此次跨版本切换建议使用 `sysupgrade -n`，先保存所需设置。
+
+当前 25.12 固件若显示 `overlayfs:/tmp/root`，配置修改仍只在 RAM 中。`/dev/loop0` 可映射到 eMMC 根分区的 SquashFS 尾部，并不代表 RAM；这个设备配置之前漏掉大分区自动格式化所需的 F2FS 工具。本项目现改为 ext4 格式化策略。原因、只读排查、手工修复及新镜像验证见 [Overlay 排查与修复](docs/overlay.md)。
 
 ## 本地检查与编译
 

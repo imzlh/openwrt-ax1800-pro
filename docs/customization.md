@@ -1,6 +1,6 @@
 # 精简配置与默认界面
 
-基础源码使用官方 OpenWrt v25.12.5，保留设备 profile 默认选择的网卡、无线、闪存等驱动，包括官方 `kmod-qca-nss-dp` 以太网驱动；虽然名字带有 NSS，这个包负责网口工作。项目不引入额外的 NSS 加速栈、ECM 或相关加速补丁。设备移植方式见项目 README。
+基础源码使用官方 OpenWrt v24.10.8（Linux 6.6），保留设备 profile 默认选择的网卡、无线、闪存等驱动，包括官方 `kmod-qca-nss-dp` 以太网驱动；虽然名字带有 NSS，这个包负责网口工作。项目不引入额外的 NSS 加速栈、ECM 或相关加速补丁。设备移植方式见项目 README。
 
 ## 包选择
 
@@ -12,13 +12,13 @@
 
 没有选择 DDNS、UPnP、广告过滤、代理、Docker 等扩展，也没有安装单独的 Argon 设置插件或网页软件包管理器。基础路由功能和上游默认的软件包管理命令仍然保留。
 
-这里直接选择 LuCI 所需模块，没有使用 `luci`、`luci-light` 或 `luci-ssl` 集合：OpenWrt 25.12 的这些集合会带入 Bootstrap 主题，部分还会带入网页软件包管理器。HTTPS 的依赖与官方 `luci-ssl` 相同。
+这里直接选择 LuCI 所需模块，没有使用 `luci`、`luci-light` 或 `luci-ssl` 集合：这些集合会带入 Bootstrap 主题，部分还会带入网页软件包管理器。HTTPS 的依赖与官方 `luci-ssl` 相同。
 
-调整包时修改配置片段；构建中的 `make defconfig` 会自动补齐依赖。不要删除设备 profile 自带的驱动。添加插件前确认它支持 OpenWrt 25.12 / 当前 LuCI，且会增加相应依赖。
+调整包时修改配置片段；构建中的 `make defconfig` 会自动补齐依赖。不要删除设备 profile 自带的驱动及 ext4 初始化所需的 `e2fsprogs`、`kmod-fs-ext4`。添加插件前确认它支持 OpenWrt 24.10 / 当前 LuCI，且会增加相应依赖。
 
 ## Argon 与暗色设置
 
-官方 LuCI feed 不包含 Argon。本项目只额外接入 [jerrykuku/luci-theme-argon](https://github.com/jerrykuku/luci-theme-argon)，固定提交为 [`23c3e525578374d6b20f5e7b93d27874cd01a252`](https://github.com/jerrykuku/luci-theme-argon/tree/23c3e525578374d6b20f5e7b93d27874cd01a252)（2.4.7）。该提交采用现代 LuCI 的 ucode 模板，并支持 OpenWrt 25.12 的 APK 软件包格式。
+官方 LuCI feed 不包含 Argon。本项目只额外接入 [jerrykuku/luci-theme-argon](https://github.com/jerrykuku/luci-theme-argon)，固定提交为 [`23c3e525578374d6b20f5e7b93d27874cd01a252`](https://github.com/jerrykuku/luci-theme-argon/tree/23c3e525578374d6b20f5e7b93d27874cd01a252)（2.4.7）。该提交的依赖声明同时覆盖 `opkg` 与 APK；本固件使用 `opkg`。
 
 [`files/etc/config/argon`](../files/etc/config/argon) 设置 `global` 段的 `mode='dark'`。主题直接读取这个文件，所以无需安装 `luci-app-argon-config`。主题自身依赖的 `wget-any`、`jsonfilter` 由编译系统补齐。
 
@@ -47,6 +47,6 @@ uci commit argon
 
 ## 上游核对依据
 
-- [OpenWrt v25.12.5 发布页](https://github.com/openwrt/openwrt/releases/tag/v25.12.5) 与 [固定版本的 feeds.conf.default](https://github.com/openwrt/openwrt/blob/v25.12.5/feeds.conf.default)。
-- [官方 LuCI 主题列表](https://github.com/openwrt/luci/tree/128a7812f4be233c5dd7f7466f534fd888785caf/themes)、[luci-light 的依赖](https://github.com/openwrt/luci/blob/128a7812f4be233c5dd7f7466f534fd888785caf/collections/luci-light/Makefile) 与 [luci-ssl 的依赖](https://github.com/openwrt/luci/blob/128a7812f4be233c5dd7f7466f534fd888785caf/collections/luci-ssl/Makefile)。
+- [OpenWrt v24.10.8 发布页](https://github.com/openwrt/openwrt/releases/tag/v24.10.8) 与 [固定版本的 feeds.conf.default](https://github.com/openwrt/openwrt/blob/v24.10.8/feeds.conf.default)。
+- [官方 LuCI 主题列表](https://github.com/openwrt/luci/tree/cac97ed67cfbcad90db49f5f3b1245c2c4cbfae5/themes)、[luci-light 的依赖](https://github.com/openwrt/luci/blob/cac97ed67cfbcad90db49f5f3b1245c2c4cbfae5/collections/luci-light/Makefile) 与 [luci-ssl 的依赖](https://github.com/openwrt/luci/blob/cac97ed67cfbcad90db49f5f3b1245c2c4cbfae5/collections/luci-ssl/Makefile)。
 - [Argon 读取暗色模式的模板](https://github.com/jerrykuku/luci-theme-argon/blob/23c3e525578374d6b20f5e7b93d27874cd01a252/ucode/template/themes/argon/header.ut) 与 [软件包依赖](https://github.com/jerrykuku/luci-theme-argon/blob/23c3e525578374d6b20f5e7b93d27874cd01a252/Makefile)。

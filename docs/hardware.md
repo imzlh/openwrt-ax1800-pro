@@ -4,7 +4,7 @@
 
 ## 官方源码与移植范围
 
-基础源码固定为 [OpenWrt v25.12.5](https://github.com/openwrt/openwrt/tree/f0a60eee2fe051741c643ea6118718aae1ef17fb)，提交 `f0a60eee2fe051741c643ea6118718aae1ef17fb`。该版本有 IPQ60xx 平台支持，但没有 RE-SS-01 profile。
+基础源码固定为 [OpenWrt v24.10.8](https://github.com/openwrt/openwrt/tree/0b795ce79e23b553aa184080c390f9ce92a2b6d4)，提交 `0b795ce79e23b553aa184080c390f9ce92a2b6d4`。该版本使用 Linux 6.6，有 IPQ60xx 平台支持，但没有 RE-SS-01 profile。
 
 [设备补丁](../patches/0001-qualcommax-add-jdcloud-re-ss-01.patch) 只增加以下设备支持：
 
@@ -21,7 +21,7 @@
 
 移植时去掉了民间设备树的 `ipq6018-nss.dtsi` 引用，以及 CPU speed-bin/OPP 覆写，使用官方平台默认值。没有复制民间发行版的内核补丁集、软件源、管理插件或初始化脚本。
 
-官方 25.12.5 已启用 `CONFIG_MMC`、`CONFIG_MMC_BLOCK`、`CONFIG_MMC_SDHCI_MSM`，并已提供 QCA8075、IPQ6018 MDIO、交换机与以太网支持，因此此设备补丁无需额外移植这些驱动。
+官方 24.10.8 已启用 `CONFIG_MMC`、`CONFIG_MMC_BLOCK`、`CONFIG_MMC_SDHCI_MSM`，并已提供 QCA8075、IPQ6018 MDIO、交换机与以太网支持，因此此设备补丁无需额外移植这些驱动。补丁另附针对固定 `fstools` 版本的 ext4 Overlay 格式化补丁，保留上游对既有文件系统的识别。
 
 ## 无线数据来源
 
@@ -55,7 +55,7 @@ OpenWrt 自带的 `ipq-wifi` 软件包已经固定了 [qca-wireless](https://git
 
 “已经扩容”并不唯一确定分区布局。刷入前按 [README 中的只读命令](../README.md#你当前的-kwrt--已扩容分区) 核对设备标识、分区标签与容量，并查看 `cat /proc/cmdline` 核对当前启动参数。若当前系统使用了自定义启动槽、重命名分区，或把 overlay 放到独立分区，需要先核对与上述布局是否一致。不要使用强制升级绕过设备不匹配提示。
 
-从 KWRT 切换时应不保留旧配置，以便重新生成网络、无线和 LuCI 配置；尤其不要直接迁移旧系统的挂载配置。镜像本身没有自动格式化其他 eMMC 分区、搬迁 overlay 或自动扩容脚本。
+从 KWRT 或 25.12 切换时应不保留旧配置，以便重新生成网络、无线和 LuCI 配置；尤其不要直接迁移旧系统的挂载配置。升级时仍写入 `0:HLOS` 与 `rootfs`，正常首次启动只会在被选中的 Overlay 区域创建 ext4；不会自动格式化其他 eMMC 分区、搬迁 overlay 或扩容。若 `/proc/cmdline` 让 `fstools` 选中独立 `rootfs_data` 分区，则该分区可能被初始化，刷入前应先核对并备份。详细判断见 [Overlay 排查与修复](overlay.md)。
 
 ## 验证边界
 

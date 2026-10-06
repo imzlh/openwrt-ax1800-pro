@@ -1,6 +1,6 @@
 """Validator regression tests using synthetic data, not built router firmware.
 
-The JSON shape and manifest names follow OpenWrt v25.12.5 image.mk and
+The JSON shape and manifest names follow OpenWrt v24.10.8 image.mk and
 scripts/json_add_image_info.py. Passing these tests does not verify a build,
 flashability, Ethernet, or Wi-Fi on actual hardware.
 """
@@ -17,13 +17,13 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 DEVICE = "jdcloud_re-ss-01"
 TARGET_OPTION = f"CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_{DEVICE}"
-PREFIX = f"openwrt-25.12.5-qualcommax-ipq60xx-{DEVICE}"
+PREFIX = f"openwrt-24.10.8-qualcommax-ipq60xx-{DEVICE}"
 IMAGE_NAME = f"{PREFIX}-squashfs-sysupgrade.bin"
 
 # Explicit expectations, independent of the validators' REQUIRED constants.
 PACKAGES = {
     "kmod-qca-nss-dp", "kmod-ath11k-ahb", "ath11k-firmware-ipq6018",
-    "ipq-wifi-jdcloud_re-ss-01", "kmod-fs-ext4", "losetup",
+    "ipq-wifi-jdcloud_re-ss-01", "e2fsprogs", "kmod-fs-ext4", "losetup",
     "luci-base", "luci-mod-admin-full", "luci-app-firewall", "luci-theme-argon",
     "luci-i18n-base-zh-cn", "luci-i18n-firewall-zh-cn",
     "luci-proto-ipv6", "luci-proto-ppp", "rpcd-mod-rrdns",
@@ -105,7 +105,7 @@ class FirmwareValidationTests(unittest.TestCase):
         self.metadata = {
             "metadata_version": 1,
             "target": "qualcommax/ipq60xx",
-            "version_number": "25.12.5",
+            "version_number": "24.10.8",
             "version_code": "synthetic-fixture",
             "profiles": {DEVICE: {
                 "image_prefix": PREFIX,
