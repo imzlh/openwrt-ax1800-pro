@@ -40,6 +40,7 @@ def config_text(series):
     lines = ["CONFIG_TARGET_qualcommax=y", "CONFIG_TARGET_qualcommax_ipq60xx=y",
              f"{TARGET_OPTION}=y", "CONFIG_TARGET_ROOTFS_SQUASHFS=y",
              "CONFIG_JSON_OVERVIEW_IMAGE_INFO=y", "CONFIG_LUCI_LANG_zh_Hans=y",
+             "CONFIG_IMAGEOPT=y", "CONFIG_VERSIONOPT=y", "CONFIG_VERSION_FILENAMES=y",
              *(f"CONFIG_PACKAGE_{package}=y" for package in sorted(PACKAGES | {manager}))]
     if series == "25.12":
         lines.append("CONFIG_USE_APK=y")
@@ -163,7 +164,7 @@ class ConfigValidationTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_lost_device_packages_or_metadata_are_rejected(self):
-        for option in (TARGET_OPTION, "CONFIG_PACKAGE_luci-theme-argon",
+        for option in (TARGET_OPTION, "CONFIG_PACKAGE_luci-theme-argon", "CONFIG_VERSION_FILENAMES",
                        "CONFIG_JSON_OVERVIEW_IMAGE_INFO", "CONFIG_PACKAGE_px5g-mbedtls"):
             with self.subTest(option=option):
                 self.config.write_text(config_text("24.10").replace(f"{option}=y\n", ""))
