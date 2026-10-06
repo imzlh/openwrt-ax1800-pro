@@ -99,6 +99,34 @@ mkdir -p files
 cp -a -- "$PROJECT_DIR/files/." files/
 chmod 0755 files/etc/uci-defaults/99-project-settings
 make defconfig
+
+# Keep the firmware lean while still producing an installable module feed.
+# OpenWrt only builds KernelPackage definitions selected in .config; select
+# every target kmod as a module, then retain the explicitly required built-ins.
+python3 - "$SOURCE_DIR" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1])
+names = set()
+for makefile in list(source.glob("package/**/*.mk")) + list(source.glob("package/**/Makefile")) + list(source.glob("target/linux/**/*.mk")) + list(source.glob("target/linux/**/Makefile")):
+    text = makefile.read_text(encoding="utf-8", errors="ignore")
+    for match in re.finditer(r"define KernelPackage/(kmod-[A-Za-z0-9+_.-]+)", text):
+        names.add(match.group(1))
+config_path = source / ".config"
+config_text = config_path.read_text(encoding="utf-8")
+forced_builtins = {"kmod-fs-ext4", "kmod-tun", "kmod-inet-diag",
+                   "kmod-nft-socket", "kmod-nft-tproxy", "kmod-dummy"}
+with config_path.open("a", encoding="utf-8") as config:
+    config.write("\n# All available kernel modules are published in the matching feed.\n")
+    for name in sorted(names):
+        if name in forced_builtins or re.search(
+                rf"^CONFIG_PACKAGE_{re.escape(name)}=y$", config_text, re.MULTILINE):
+            continue
+        config.write(f"CONFIG_PACKAGE_{name}=m\n")
+PY
+make defconfig
 python3 "$PROJECT_DIR/scripts/check-config.py" .config --release "$RELEASE"
 
 echo "OpenWrt $RELEASE source ready: $SOURCE_DIR"

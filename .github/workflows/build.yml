@@ -163,7 +163,8 @@ jobs:
           python3 scripts/check-config.py "$SOURCE_DIR/.config" --release "$SERIES"
           python3 scripts/check-kernel.py "$SOURCE_DIR" --release "$SERIES"
           python3 scripts/check-firmware.py "$TARGET_DIR" --release "$SERIES"
-          python3 scripts/collect-release.py "$TARGET_DIR" artifacts/release --release "$SERIES" --build-info artifacts/build-info.json
+          python3 scripts/collect-release.py "$TARGET_DIR" artifacts/release --release "$SERIES" --build-info artifacts/build-info.json \
+            --kernel-packages "artifacts/release/openwrt-${VERSION}-${SERIES}-kernel-modules.tar.zst"
 
       - name: Upload firmware and release attachments
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

@@ -35,6 +35,7 @@
 | Releases | `main` 自动创建每版独立的预发布；两种镜像、设备 manifest、profiles.json、build-info.json、SHA256SUMS |
 | `openwrt-版本-jdcloud-ax1800pro-运行编号-尝试编号` artifact | 与 Release 相同的已校验附件，保留 30 天 |
 | `packages-版本-运行编号-尝试编号` artifact | 同次编译的目标软件包，含内核模块，保留 30 天 |
+| `openwrt-版本-系列-kernel-modules.tar.zst` Release 附件 | 同次编译的全部 `kmod-*` 包和索引，可解压后配置为本地软件源 |
 | `build-info-版本-运行编号-尝试编号` artifact | 配置、来源提交、补丁摘要及日志，保留 14 天 |
 
 发布前同时验证设备、版本、包管理器、必要运行包、镜像校验和与结构。必须同时生成可通过校验的 sysupgrade 和 factory，才会发布该版本。`SHA256SUMS` 覆盖所有发布附件。
