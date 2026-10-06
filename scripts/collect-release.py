@@ -5,6 +5,7 @@ import importlib.util
 import json
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 import tarfile
@@ -71,9 +72,16 @@ def collect_kernel_packages(target, output, series=DEFAULT_RELEASE):
     output.parent.mkdir(parents=True, exist_ok=True)
     if output.exists():
         raise ValueError(f"Package archive already exists: {output}")
-    with tarfile.open(output, "w:zst") as archive:
-        for path in selected:
-            archive.add(path, path.relative_to(package_root).as_posix(), recursive=False)
+    with tempfile.TemporaryDirectory(prefix=".kernel-feed-", dir=output.parent) as temporary:
+        tar_path = Path(temporary) / "kernel-modules.tar"
+        with tarfile.open(tar_path, "w") as archive:
+            for path in selected:
+                archive.add(path, path.relative_to(package_root).as_posix(), recursive=False)
+        try:
+            subprocess.run(["zstd", "-q", "-f", "-19", str(tar_path), "-o", str(output)],
+                           check=True)
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise ValueError("zstd is required to create kernel module archive") from error
     return [p.relative_to(package_root).as_posix() for p in selected]
 
 

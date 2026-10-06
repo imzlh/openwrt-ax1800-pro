@@ -99,6 +99,9 @@ jobs:
       - name: Install build dependencies
         uses: ./.github/actions/setup-openwrt
 
+      - name: Install archive tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zstd
+
       - name: Prepare isolated source tree
         run: |
           mkdir -p artifacts/logs
