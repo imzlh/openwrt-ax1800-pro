@@ -18,12 +18,15 @@
 - 简体中文 LuCI、Argon 暗色、HTTP / HTTPS；保留网络、无线、防火墙、IPv6 和 PPPoE 管理。
 - LAN `192.168.10.1/24`；双频 Wi-Fi 开启，SSID 均为 `OpenWrt`，无密码。首次登录后设置管理员与无线密码。
 - 保留官方 ath11k 和网口驱动 `kmod-qca-nss-dp`；不引入 NSS 转发加速、ECM、代理、Docker 等扩展。
+- 内建 TUN、连接诊断、nftables socket / TPROXY 及必要基础依赖，附带 `ip-full` 策略路由工具，便于后续使用 Mihomo；具体范围见 [内核配置说明](docs/customization.md#常用网络能力内建)。
 
 ## GitHub Actions 构建与发布
 
 推送构建相关改动到 `main` 会并行构建两个版本。也可进入 **Actions → Build AX1800 Pro → Run workflow**：`release=all` 构建两版，或选择 `24.10` / `25.12`；`jobs=auto` 使用 runner 全部 CPU，内存不足时可改为 `2`。
 
 每个版本独立准备源码、下载、编译、验证和发布。一版失败不会取消另一版。下载缓存和 ccache 按版本隔离，每次运行保存更新。编译失败会单线程重试；失败时也收集来源信息和日志。
+
+源码下载优先尝试 OpenWrt 官方源码 CDN，未命中时继续使用包定义的 GNU 等上游镜像，始终校验原有哈希。Actions 限制单镜像重试，并在连接失败或持续低速时切换，减少 GNU 镜像重定向超时造成的等待。
 
 成功后的下载入口：
 
@@ -35,6 +38,8 @@
 | `build-info-版本-运行编号-尝试编号` artifact | 配置、来源提交、补丁摘要及日志，保留 14 天 |
 
 发布前同时验证设备、版本、包管理器、必要运行包、镜像校验和与结构。必须同时生成可通过校验的 sysupgrade 和 factory，才会发布该版本。`SHA256SUMS` 覆盖所有发布附件。
+
+构建还检查实际内核 `.config` 与 `modules.builtin`，确认选定功能真正内建；日志显示 FIT 内核大小及距离 6 MiB 的剩余空间。`build-info` artifact 保存实际内核配置和内建模块清单。
 
 ## 选择刷入文件
 
@@ -51,6 +56,7 @@
 
 - [sources.lock.json](sources.lock.json)：唯一版本定义；升级时同步复核对应版本补丁和构建结果。
 - [config/ax1800pro.config](config/ax1800pro.config)：两版共用设备、界面和软件包选择；`config/24.10.config` / `config/25.12.config` 选择版本依赖。
+- [config/kernel-builtins.config](config/kernel-builtins.config)：两版共用的 Linux 内建符号，准备时复制到 OpenWrt 原生的 `env/kernel-config`。
 - [patches/common](patches/common)：共用设备树；`patches/24.10` / `patches/25.12`：版本适配，按锁文件目录顺序、文件名顺序应用。
 - [files](files)：首次启动网络、中文、时区和主题；具体行为见 [定制说明](docs/customization.md)。
 - [scripts](scripts)：统一版本加载、源码准备、配置和固件校验、来源记录及发布附件收集。
@@ -70,6 +76,9 @@ bash scripts/prepare.sh "$HOME/build/ax1800pro-24" --release 24.10
 bash scripts/prepare.sh "$HOME/build/ax1800pro-25" --release 25.12
 
 cd "$HOME/build/ax1800pro-25"
+# 与 Actions 相同的下载策略；不限制正常大文件下载的总时长。
+export CURL_OPTIONS='--connect-timeout 10 --retry 1 --retry-delay 1 --speed-limit 1024 --speed-time 30'
+export WGET_OPTIONS='--tries=2 --timeout=30 --dns-timeout=10 --connect-timeout=10'
 make download -j8
 make -j"$(nproc)" BUILD_LOG=1
 ```
@@ -78,6 +87,7 @@ make -j"$(nproc)" BUILD_LOG=1
 
 ```sh
 python3 scripts/check-config.py "$HOME/build/ax1800pro-25/.config" --release 25.12
+python3 scripts/check-kernel.py "$HOME/build/ax1800pro-25" --release 25.12
 python3 scripts/build-info.py "$HOME/build/ax1800pro-25" artifacts/25.12 --release 25.12
 python3 scripts/collect-release.py \
   "$HOME/build/ax1800pro-25/bin/targets/qualcommax/ipq60xx" \

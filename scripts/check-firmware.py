@@ -252,7 +252,9 @@ def verify(directory, series=DEFAULT_RELEASE):
         raise ValueError("Factory and sysupgrade kernel/rootfs contents differ")
     manifest = f"{prefix}.manifest"
     check_manifest(local_file(directory, manifest), release)
-    return {"images": images, "manifest": manifest, "profiles": "profiles.json"}
+    return {"images": images, "manifest": manifest, "profiles": "profiles.json",
+            "kernel_bytes": components[0][2],
+            "kernel_free_bytes": KERNEL_SIZE - components[0][2]}
 
 
 def check(directory, series=DEFAULT_RELEASE):
@@ -265,8 +267,11 @@ def main():
     parser.add_argument("directory", type=Path)
     parser.add_argument("--release", default=DEFAULT_RELEASE)
     args = parser.parse_args()
-    for name in check(args.directory, args.release):
+    verified = verify(args.directory, args.release)
+    for name in verified["images"]:
         print(f"Verified firmware: {name}")
+    print(f"FIT kernel: {verified['kernel_bytes']} bytes; "
+          f"free in 6 MiB: {verified['kernel_free_bytes']} bytes")
 
 
 if __name__ == "__main__":

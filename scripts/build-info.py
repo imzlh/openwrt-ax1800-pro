@@ -43,7 +43,7 @@ def collect(source, output, series):
         "argon_commit": git(source / "package/luci-theme-argon", "rev-parse", "HEAD"),
         "feeds": {},
         "patches_sha256": hashes(release_files(release, "patches")),
-        "config_sha256": hashes(release_files(release, "config")),
+        "config_sha256": hashes(release_files(release, "config") + release_files(release, "kernel")),
         "files_sha256": hashes(sorted(p for p in (ROOT / "files").rglob("*") if p.is_file())),
         "github_run": os.environ.get("GITHUB_RUN_ID"),
         "github_run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
@@ -53,9 +53,18 @@ def collect(source, output, series):
         info["feeds"] = {p.name: git(p, "rev-parse", "HEAD")
                          for p in feeds.iterdir() if (p / ".git").exists()}
     for origin, destination in ((".config", "build.config"),
+                                ("env/kernel-config", "kernel-builtins.config"),
                                 ("feeds.conf.default", "feeds.conf.default")):
         if (source / origin).is_file():
             shutil.copyfile(source / origin, output / destination)
+    kernels = sorted(source.glob("build_dir/target-*/linux-qualcommax_ipq60xx/linux-*/.config"))
+    info["kernel_configs"] = [p.relative_to(source).as_posix() for p in kernels]
+    if len(kernels) == 1:
+        for origin, destination in ((kernels[0], "kernel.config"),
+                                    (kernels[0].with_name("modules.builtin"), "modules.builtin")):
+            if origin.is_file():
+                shutil.copyfile(origin, output / destination)
+        info["kernel_config_sha256"] = hashlib.sha256(kernels[0].read_bytes()).hexdigest()
     diff = git(source, "diff", "--binary", "HEAD")
     if diff is not None:
         (output / "local-changes.patch").write_text(diff + "\n", encoding="utf-8")

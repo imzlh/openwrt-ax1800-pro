@@ -111,7 +111,9 @@ jobs:
         with:
           path: ${{ env.SOURCE_DIR }}/dl
           key: ${{ runner.os }}-openwrt-dl-v4-${{ matrix.series }}-${{ matrix.version }}-${{ hashFiles('sources.lock.json') }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ${{ runner.os }}-openwrt-dl-v4-${{ matrix.series }}-${{ matrix.version }}-${{ hashFiles('sources.lock.json') }}-
+          restore-keys: |
+            ${{ runner.os }}-openwrt-dl-v4-${{ matrix.series }}-${{ matrix.version }}-${{ hashFiles('sources.lock.json') }}-
+            ${{ runner.os }}-openwrt-dl-v4-${{ matrix.series }}-${{ matrix.version }}-
 
       - name: Restore compiler cache
         continue-on-error: true
@@ -159,6 +161,7 @@ jobs:
       - name: Verify firmware and stage release attachments
         run: |
           python3 scripts/check-config.py "$SOURCE_DIR/.config" --release "$SERIES"
+          python3 scripts/check-kernel.py "$SOURCE_DIR" --release "$SERIES"
           python3 scripts/check-firmware.py "$TARGET_DIR" --release "$SERIES"
           python3 scripts/collect-release.py "$TARGET_DIR" artifacts/release --release "$SERIES" --build-info artifacts/build-info.json
 
@@ -189,6 +192,9 @@ jobs:
             artifacts/logs/
             artifacts/build-info.json
             artifacts/build.config
+            artifacts/kernel-builtins.config
+            artifacts/kernel.config
+            artifacts/modules.builtin
             artifacts/feeds.conf.default
             artifacts/local-changes.patch
             ${{ env.SOURCE_DIR }}/logs/

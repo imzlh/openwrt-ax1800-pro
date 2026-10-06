@@ -30,6 +30,7 @@ PACKAGES = {
     "luci-i18n-base-zh-cn", "luci-i18n-firewall-zh-cn", "luci-proto-ipv6",
     "luci-proto-ppp", "rpcd-mod-rrdns", "uhttpd", "uhttpd-mod-ubus",
     "libustream-mbedtls", "px5g-mbedtls", "ca-bundle",
+    "kmod-tun", "kmod-inet-diag", "kmod-nft-socket", "kmod-nft-tproxy", "ip-full",
 }
 RUNTIME_PACKAGES = (PACKAGES - {"libustream-mbedtls"}) | {"libustream-mbedtls20201210"}
 

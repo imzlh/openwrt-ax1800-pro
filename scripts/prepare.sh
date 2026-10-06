@@ -38,7 +38,8 @@ readarray -t SOURCES < <(python3 "$PROJECT_DIR/scripts/project.py" sources --rel
 [[ ${#SOURCES[@]} == 4 ]]
 readarray -t PATCHES < <(python3 "$PROJECT_DIR/scripts/project.py" files --release "$RELEASE" --kind patches)
 readarray -t CONFIGS < <(python3 "$PROJECT_DIR/scripts/project.py" files --release "$RELEASE" --kind config)
-[[ ${#PATCHES[@]} -gt 0 && ${#CONFIGS[@]} -gt 0 ]]
+readarray -t KERNEL_CONFIG < <(python3 "$PROJECT_DIR/scripts/project.py" files --release "$RELEASE" --kind kernel)
+[[ ${#PATCHES[@]} -gt 0 && ${#CONFIGS[@]} -gt 0 && ${#KERNEL_CONFIG[@]} == 1 ]]
 
 checkout_locked() {
     local url=$1 commit=$2 destination=$3 attempt
@@ -90,6 +91,10 @@ done
 checkout_locked "${SOURCES[2]}" "${SOURCES[3]}" package/luci-theme-argon
 
 cat -- "${CONFIGS[@]}" > .config
+# OpenWrt merges this after target configs; its m+ merge keeps these y values
+# when package metadata requests the same kernel features as modules.
+mkdir -p env
+cp -- "${KERNEL_CONFIG[0]}" env/kernel-config
 mkdir -p files
 cp -a -- "$PROJECT_DIR/files/." files/
 chmod 0755 files/etc/uci-defaults/99-project-settings

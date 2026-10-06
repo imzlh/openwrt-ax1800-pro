@@ -3,6 +3,11 @@ description: Shared dependencies for firmware builds and preparation smoke check
 runs:
   using: composite
   steps:
+    - name: Limit retries on stalled source mirrors
+      shell: bash
+      run: |
+        echo 'CURL_OPTIONS=--connect-timeout 10 --retry 1 --retry-delay 1 --speed-limit 1024 --speed-time 30' >> "$GITHUB_ENV"
+        echo 'WGET_OPTIONS=--tries=2 --timeout=30 --dns-timeout=10 --connect-timeout=10' >> "$GITHUB_ENV"
     - name: Install packages
       shell: bash
       run: |

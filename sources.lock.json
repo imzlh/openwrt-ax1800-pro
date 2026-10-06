@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "openwrt_url": "https://github.com/openwrt/openwrt.git",
+  "kernel_config": "config/kernel-builtins.config",
   "argon": {
     "url": "https://github.com/jerrykuku/luci-theme-argon.git",
     "commit": "23c3e525578374d6b20f5e7b93d27874cd01a252"

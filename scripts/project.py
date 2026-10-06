@@ -27,6 +27,8 @@ def load_releases(lock_file=LOCK_FILE):
             raise ValueError(f"Expected an HTTPS source URL: {url}")
     if not re.fullmatch(r"[0-9a-f]{40}", lock["argon"]["commit"]):
         raise ValueError("Argon must be pinned to a full commit")
+    if not project_path(lock["kernel_config"]).is_file():
+        raise ValueError("Missing kernel configuration fragment")
     releases = {}
     for series, entry in lock["releases"].items():
         if not re.fullmatch(r"\d+\.\d+", series):
@@ -47,7 +49,8 @@ def load_releases(lock_file=LOCK_FILE):
                 if key == "patch_dirs" and not any(path.glob("*.patch")):
                     raise ValueError(f"Missing device patches: {value}")
         releases[series] = {**entry, "series": series,
-                            "url": lock["openwrt_url"], "argon": lock["argon"]}
+                            "url": lock["openwrt_url"], "argon": lock["argon"],
+                            "kernel_config": lock["kernel_config"]}
     if not releases:
         raise ValueError("No releases configured")
     return releases
@@ -61,6 +64,8 @@ def load_release(series=DEFAULT_RELEASE):
 
 
 def release_files(release, kind):
+    if kind == "kernel":
+        return [project_path(release["kernel_config"])]
     if kind == "config":
         return [project_path(path) for path in release["config"]]
     return [patch for directory in release["patch_dirs"]
@@ -75,7 +80,7 @@ def main():
         sub = commands.add_parser(command)
         sub.add_argument("--release", default="all" if command == "matrix" else DEFAULT_RELEASE)
         if command == "files":
-            sub.add_argument("--kind", choices=("config", "patches"), required=True)
+            sub.add_argument("--kind", choices=("config", "kernel", "patches"), required=True)
     args = parser.parse_args()
     if args.command == "validate":
         for release in load_releases().values():

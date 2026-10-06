@@ -16,6 +16,18 @@
 
 调整两版通用的软件包时修改 `config/ax1800pro.config`，版本差异放在 `config/24.10.config` / `config/25.12.config`；构建中的 `make defconfig` 会自动补齐依赖。不要删除设备 profile 自带的驱动及 ext4 初始化所需的 `e2fsprogs`、`kmod-fs-ext4`。添加插件前分别确认它支持两个版本的 OpenWrt / LuCI，且会增加相应依赖。
 
+## 常用网络能力内建
+
+[config/kernel-builtins.config](../config/kernel-builtins.config) 将 18 个 Linux 符号设为 `y`，由 OpenWrt 原生的 `env/kernel-config` 合并进两版内核。它们包括 TUN、TCP/UDP/raw socket 诊断、nftables socket 与 TPROXY，以及共享的连接跟踪、IPv4/IPv6 分片处理、nf_tables、nfnetlink 和 CRC32C 依赖。其他 nftables 规则模块仍按上游配置构建。
+
+对应的 `kmod-tun`、`kmod-inet-diag`、`kmod-nft-socket`、`kmod-nft-tproxy` 和依赖包继续选中。OpenWrt 根据 `modules.builtin` 跳过已内建的 `.ko`，保留包依赖与配置文件；尤其 `kmod-nft-core` 仍包含其他未内建的模块，不能将整个包删除或清空。`ip-full` 提供策略路由命令，是用户态程序。
+
+这使常用功能不再依赖启动后加载独立模块，并减少根文件系统中的模块文件。内核采用 gzip 压缩，factory 中根文件系统仍从 6 MiB 开始；内建后增加的 FIT 体积会使用原有填充空间。启动耗时和最终节省量需用新镜像实测，不能把旧 `.ko` 的大小直接当作最终增量。
+
+供本次选型参考的已有镜像：24.10.8 / Linux 6.6.144 的 FIT 为 5,232,780 字节，余量 1,058,676 字节；25.12.5 / Linux 6.12.94 的 FIT 为 5,409,464 字节，余量 881,992 字节。这些是修改前的样本；新构建会打印实际 FIT 大小和剩余空间，并沿用 6 MiB 上限检查。
+
+发布前 [check-kernel.py](../scripts/check-kernel.py) 检查实际内核 `.config` 中选定符号均为 `y`，以及 `modules.builtin` 的对应条目。新增内建项时同步更新脚本的模块映射。改变 `m/y` 会由 OpenWrt 自动重新计算内核 ABI，因此额外内核包仍须使用同次构建的版本。
+
 ## Argon 与暗色设置
 
 官方 LuCI feed 不包含 Argon。本项目只额外接入 [jerrykuku/luci-theme-argon](https://github.com/jerrykuku/luci-theme-argon)，固定提交为 [`23c3e525578374d6b20f5e7b93d27874cd01a252`](https://github.com/jerrykuku/luci-theme-argon/tree/23c3e525578374d6b20f5e7b93d27874cd01a252)（2.4.7）。该提交的依赖声明同时覆盖 `opkg` 与 APK；24.10 使用 `opkg`，25.12 使用 `apk`。
