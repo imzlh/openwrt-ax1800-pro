@@ -11,6 +11,11 @@ LOCK_FILE = ROOT / "sources.lock.json"
 DEFAULT_RELEASE = "24.10"
 
 
+def wrong_package_manager(name, release):
+    return (name == "opkg" if release["package_manager"] == "apk"
+            else name == "apk" or name.startswith("apk-"))
+
+
 def project_path(value):
     path = (ROOT / value).resolve()
     if not path.is_relative_to(ROOT) or Path(value).is_absolute():

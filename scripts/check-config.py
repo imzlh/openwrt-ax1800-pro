@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import sys
 
-from project import DEFAULT_RELEASE, load_release
+from project import DEFAULT_RELEASE, load_release, wrong_package_manager
 
 DEVICE = "jdcloud_re-ss-01"
 TARGET = f"CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_{DEVICE}"
@@ -38,11 +38,6 @@ def is_offload_package(name):
 def required_packages(release):
     manager = "apk-mbedtls" if release["package_manager"] == "apk" else "opkg"
     return PACKAGES | {manager}
-
-
-def wrong_package_manager(name, release):
-    return (name == "opkg" if release["package_manager"] == "apk"
-            else name == "apk" or name.startswith("apk-"))
 
 
 def check(path, series=DEFAULT_RELEASE):

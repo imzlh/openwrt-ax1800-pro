@@ -24,6 +24,8 @@
 
 `package-plan.json` 记录候选包、官方索引哈希、最终 `y/m` 选择和依赖解析后未选中的条目。不同平台的驱动、隐藏依赖或互斥版本不会被强制编入。发布前逐项核对所有已选安装包、ABI 后缀和实际文件，任何缺失都会失败。`package-inventory.json` 提供最终文件与哈希；两个清单随 Release 附件发布。
 
+包管理器按版本排除：25.12 不补编 `opkg`，24.10 不补编 `apk` 及其变体。它们在另一版官方源缺席是版本选择，不属于缺包；排除原因也记录在清单中。
+
 `openwrt-版本-系列-packages.tar.zst` 保留完整的 `targets/qualcommax/ipq60xx/packages/` 和 `packages/aarch64_cortex-a53/各feed/`，包括所需依赖、APK 的小写 `packages.adb` 或 opkg 的 `Packages.gz`。索引描述的包一起保存，解压后的目录可直接作为软件源。下载与固件**同次构建**的压缩包，解压到路由器，例如 `/mnt/openwrt-packages`，或放到局域网 HTTP 服务。
 
 25.12 使用 APK。在 `/etc/apk/repositories.d/` 新建本地源文件，每行填写一个仓库索引，例如：

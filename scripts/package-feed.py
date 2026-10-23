@@ -8,7 +8,7 @@ import sys
 import time
 from urllib.request import urlopen
 
-from project import DEFAULT_RELEASE, load_release
+from project import DEFAULT_RELEASE, load_release, wrong_package_manager
 
 PLAN = "package-plan.json"
 INVENTORY = "package-inventory.json"
@@ -91,9 +91,14 @@ def select(source, series=DEFAULT_RELEASE, fetch=None):
         if config.get(symbol) != "y":
             raise ValueError(f"Required native package selection: {symbol}=y")
     official, indexes = official_indexes(source, release, fetch)
-    candidates = {}
+    candidates, policy_excluded = {}, {}
     for name, package in sorted(packages.items()):
         if "ipkg" not in package.get("Type", "").split() or package.get("Build-Only"):
+            continue
+        if wrong_package_manager(name, release):
+            policy_excluded[name] = {
+                "reason": "incompatible-package-manager",
+                "explanation": f"This release uses {release['package_manager']}"}
             continue
         reason = ("kernel-abi" if name.startswith("kmod-") else
                   "target-specific" if not package.get("Repository") else
@@ -110,10 +115,13 @@ def select(source, series=DEFAULT_RELEASE, fetch=None):
                and config.get(f"CONFIG_PACKAGE_{name}") not in ("y", "m")]
     with (source / ".config").open("a", encoding="utf-8", newline="\n") as output:
         output.write("\n# Shared packages absent from official release feeds.\n")
+        for name in sorted(policy_excluded):
+            output.write(f"# CONFIG_PACKAGE_{name} is not set\n")
         for name in missing:
             output.write(f"CONFIG_PACKAGE_{name}=m\n")
     plan = {"schema_version": 1, "series": series, "version": release["version"],
             "official_indexes": indexes, "candidates": candidates,
+            "policy_excluded": policy_excluded,
             "metadata_sha256": digest(source / "tmp/.packageinfo")}
     write_json(source / PLAN, plan)
     print(f"Requested {len(candidates)} matching/unpublished packages; "
@@ -136,6 +144,7 @@ def finalize(source, series=DEFAULT_RELEASE):
                               "explanation": "Not selected after native target/dependency resolution"}
                         for name, entry in plan["candidates"].items()
                         if name not in plan["selected"]}
+    plan["excluded"].update(plan.get("policy_excluded", {}))
     plan["config_sha256"] = digest(source / ".config")
     plan["metadata_sha256"] = digest(source / "tmp/.packageinfo")
     write_json(source / PLAN, plan)

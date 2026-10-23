@@ -100,6 +100,27 @@ class PackageFeedTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "configuration changed"):
             FEED.verify(self.source, "25.12")
 
+    def test_unpublished_incompatible_package_manager_is_never_requested(self):
+        with (self.source / "tmp/.packageinfo").open("a", encoding="utf-8") as info:
+            for name in ("opkg", "apk", "apk-mbedtls", "apk-openssl"):
+                info.write(f"Source-Makefile: package/{name}/Makefile\n"
+                           f"Package: {name}\nType: ipkg\nRepository: base\n"
+                           "Description: package manager\n@@\n")
+        for series, excluded, included in (
+                ("25.12", {"opkg"}, {"apk", "apk-mbedtls", "apk-openssl"}),
+                ("24.10", {"apk", "apk-mbedtls", "apk-openssl"}, {"opkg"})):
+            with self.subTest(series=series):
+                plan = FEED.select(self.source, series, self.fetch)
+                self.assertEqual(set(plan["policy_excluded"]), excluded)
+                self.assertTrue(excluded.isdisjoint(plan["candidates"]))
+                self.assertTrue(included.issubset(plan["candidates"]))
+                config = (self.source / ".config").read_text(encoding="utf-8")
+                for name in excluded:
+                    last = [line for line in config.splitlines()
+                            if line.startswith(f"CONFIG_PACKAGE_{name}=")
+                            or line == f"# CONFIG_PACKAGE_{name} is not set"][-1]
+                    self.assertEqual(last, f"# CONFIG_PACKAGE_{name} is not set")
+
     @unittest.skipUnless(shutil.which("zstd"), "requires zstd")
     def test_complete_repositories_and_archive_are_in_release_checksums(self):
         self.create_repositories()

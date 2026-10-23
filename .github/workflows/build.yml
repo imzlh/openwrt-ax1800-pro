@@ -32,7 +32,7 @@ defaults:
     shell: bash
 
 concurrency:
-  group: ax1800pro-${{ github.ref }}-${{ inputs.release || 'all' }}
+  group: ax1800pro-${{ github.ref }}-${{ github.sha }}-${{ inputs.release || 'all' }}
   cancel-in-progress: false
 
 jobs:
