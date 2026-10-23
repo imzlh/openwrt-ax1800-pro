@@ -54,6 +54,8 @@ def collect(source, output, series):
                          for p in feeds.iterdir() if (p / ".git").exists()}
     for origin, destination in ((".config", "build.config"),
                                 ("env/kernel-config", "kernel-builtins.config"),
+                                ("package-plan.json", "package-plan.json"),
+                                ("package-inventory.json", "package-inventory.json"),
                                 ("feeds.conf.default", "feeds.conf.default")):
         if (source / origin).is_file():
             shutil.copyfile(source / origin, output / destination)

@@ -16,6 +16,25 @@
 
 调整两版通用的软件包时修改 `config/ax1800pro.config`，版本差异放在 `config/24.10.config` / `config/25.12.config`；构建中的 `make defconfig` 会自动补齐依赖。不要删除设备 profile 自带的驱动及 ext4 初始化所需的 `e2fsprogs`、`kmod-fs-ext4`。添加插件前分别确认它支持两个版本的 OpenWrt / LuCI，且会增加相应依赖。
 
+## 额外软件包仓库
+
+固件继续只安装基础路由和选定界面。`CONFIG_ALL_KMODS=y` 与 `CONFIG_ALL_NONSHARED=y` 使用 OpenWrt 原生依赖解析，将当前目标可用的额外内核模块、目标专用包选为 `m`，生成安装包。已选为 `y` 的设备驱动与基础组件仍保留。
+
+[package-feed.py](../scripts/package-feed.py) 读取 `tmp/.packageinfo`，对比固定版本与架构的官方 base 和全部 feeds 的 `index.json`，将官方共享源没有的用户态包选为 `m`。因此 Argon 等本地包也会发布；可直接从官方源安装的普通用户态包无需全部重新编译。构建不引入未接入的第三方插件。
+
+`package-plan.json` 记录候选包、官方索引哈希、最终 `y/m` 选择和依赖解析后未选中的条目。不同平台的驱动、隐藏依赖或互斥版本不会被强制编入。发布前逐项核对所有已选安装包、ABI 后缀和实际文件，任何缺失都会失败。`package-inventory.json` 提供最终文件与哈希；两个清单随 Release 附件发布。
+
+`openwrt-版本-系列-packages.tar.zst` 保留完整的 `targets/qualcommax/ipq60xx/packages/` 和 `packages/aarch64_cortex-a53/各feed/`，包括所需依赖、APK 的小写 `packages.adb` 或 opkg 的 `Packages.gz`。索引描述的包一起保存，解压后的目录可直接作为软件源。下载与固件**同次构建**的压缩包，解压到路由器，例如 `/mnt/openwrt-packages`，或放到局域网 HTTP 服务。
+
+25.12 使用 APK。在 `/etc/apk/repositories.d/` 新建本地源文件，每行填写一个仓库索引，例如：
+
+```text
+/mnt/openwrt-packages/targets/qualcommax/ipq60xx/packages/packages.adb
+/mnt/openwrt-packages/packages/aarch64_cortex-a53/base/packages.adb
+```
+
+按压缩包实际目录添加其他 feed，再执行 `apk update` 和 `apk add kmod-wireguard` 等命令。使用 HTTP 服务时，将本地路径替换成对应 `http://地址/目录/.../packages.adb`。自编译包使用固件里的同次构建密钥；不要混用其他版本的内核包。24.10 在 `/etc/opkg/customfeeds.conf` 添加指向相同仓库目录的 `src/gz` 项，并使用 `opkg update` / `opkg install`。
+
 ## 常用网络能力内建
 
 [config/kernel-builtins.config](../config/kernel-builtins.config) 将 18 个 Linux 符号设为 `y`，由 OpenWrt 原生的 `env/kernel-config` 合并进两版内核。它们包括 TUN、TCP/UDP/raw socket 诊断、nftables socket 与 TPROXY，以及共享的连接跟踪、IPv4/IPv6 分片处理、nf_tables、nfnetlink 和 CRC32C 依赖。其他 nftables 规则模块仍按上游配置构建。

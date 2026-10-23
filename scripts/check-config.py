@@ -23,6 +23,7 @@ REQUIRED = {
     "CONFIG_TARGET_ROOTFS_SQUASHFS", "CONFIG_JSON_OVERVIEW_IMAGE_INFO",
     "CONFIG_IMAGEOPT", "CONFIG_VERSIONOPT", "CONFIG_VERSION_FILENAMES",
     "CONFIG_LUCI_LANG_zh_Hans",
+    "CONFIG_ALL_KMODS", "CONFIG_ALL_NONSHARED",
     *(f"CONFIG_PACKAGE_{package}" for package in PACKAGES),
 }
 
@@ -58,6 +59,8 @@ def check(path, series=DEFAULT_RELEASE):
               if config.get(key) != "y"]
     if release["package_manager"] == "opkg" and config.get("CONFIG_USE_APK") == "y":
         errors.append("OpenWrt release requires opkg, but CONFIG_USE_APK=y")
+    if config.get("CONFIG_ALL") == "y":
+        errors.append("CONFIG_ALL=y would unnecessarily build all official userspace packages")
     devices = [key for key, value in config.items()
                if re.match(r"CONFIG_TARGET_.*_DEVICE_", key) and value == "y"]
     if devices != [TARGET]:

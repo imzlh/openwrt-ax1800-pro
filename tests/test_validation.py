@@ -41,6 +41,7 @@ def config_text(series):
              f"{TARGET_OPTION}=y", "CONFIG_TARGET_ROOTFS_SQUASHFS=y",
              "CONFIG_JSON_OVERVIEW_IMAGE_INFO=y", "CONFIG_LUCI_LANG_zh_Hans=y",
              "CONFIG_IMAGEOPT=y", "CONFIG_VERSIONOPT=y", "CONFIG_VERSION_FILENAMES=y",
+             "CONFIG_ALL_KMODS=y", "CONFIG_ALL_NONSHARED=y",
              *(f"CONFIG_PACKAGE_{package}=y" for package in sorted(PACKAGES | {manager}))]
     if series == "25.12":
         lines.append("CONFIG_USE_APK=y")

@@ -161,13 +161,14 @@ jobs:
           mkdir -p artifacts/logs
           python3 scripts/build-info.py "$SOURCE_DIR" artifacts --release "$SERIES" 2>&1 | tee artifacts/logs/metadata.log
 
-      - name: Verify firmware and stage release attachments
+      - name: Verify firmware and complete package feed, then stage release attachments
         run: |
           python3 scripts/check-config.py "$SOURCE_DIR/.config" --release "$SERIES"
           python3 scripts/check-kernel.py "$SOURCE_DIR" --release "$SERIES"
           python3 scripts/check-firmware.py "$TARGET_DIR" --release "$SERIES"
           python3 scripts/collect-release.py "$TARGET_DIR" artifacts/release --release "$SERIES" --build-info artifacts/build-info.json \
-            --kernel-packages "artifacts/release/openwrt-${VERSION}-${SERIES}-kernel-modules.tar.zst"
+            --package-source "$SOURCE_DIR" \
+            --package-archive "openwrt-${VERSION}-${SERIES}-packages.tar.zst"
 
       - name: Upload firmware and release attachments
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -178,11 +179,14 @@ jobs:
           compression-level: 0
           retention-days: 30
 
-      - name: Upload matching kernel packages
+      - name: Upload complete matching package repositories
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: packages-${{ matrix.version }}-${{ github.run_number }}-${{ github.run_attempt }}
-          path: ${{ env.TARGET_DIR }}/packages/
+          path: |
+            artifacts/release/*-packages.tar.zst
+            artifacts/release/package-plan.json
+            artifacts/release/package-inventory.json
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -200,18 +204,20 @@ jobs:
             artifacts/kernel.config
             artifacts/modules.builtin
             artifacts/feeds.conf.default
+            artifacts/package-plan.json
+            ${{ env.SOURCE_DIR }}/package-inventory.json
             artifacts/local-changes.patch
             ${{ env.SOURCE_DIR }}/logs/
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Publish prerelease
+      - name: Publish stable release
         if: success() && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "ax1800pro-v${VERSION}-build${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}" artifacts/release/* \
+          gh release create "ax1800pro-v${VERSION}-r${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" artifacts/release/* \
             --target "$GITHUB_SHA" \
-            --title "AX1800 Pro OpenWrt ${VERSION} (build ${GITHUB_RUN_NUMBER}, attempt ${GITHUB_RUN_ATTEMPT})" \
-            --prerelease \
-            --notes "JDCloud RE-SS-01，OpenWrt ${VERSION}，eMMC ext4 Overlay。包含 sysupgrade 和 factory 镜像，刷写方式请参阅仓库 README。"
+            --title "AX1800 Pro OpenWrt ${VERSION} (r${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT})" \
+            --latest=false \
+            --notes "JDCloud RE-SS-01，OpenWrt ${VERSION}，eMMC ext4 Overlay。稳定版；包含 sysupgrade、factory、完整匹配的软件包仓库及漏包校验清单，刷写和软件源配置请参阅仓库 README。"

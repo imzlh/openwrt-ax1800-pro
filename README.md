@@ -32,10 +32,11 @@
 
 | 位置 | 内容 |
 | --- | --- |
-| Releases | `main` 自动创建每版独立的预发布；两种镜像、设备 manifest、profiles.json、build-info.json、SHA256SUMS |
+| Releases | `main` 自动创建每版独立的稳定发布；tag 为 `ax1800pro-v版本-r运行编号.尝试编号`；两种镜像、设备 manifest、profiles.json、build-info.json、SHA256SUMS |
 | `openwrt-版本-jdcloud-ax1800pro-运行编号-尝试编号` artifact | 与 Release 相同的已校验附件，保留 30 天 |
-| `packages-版本-运行编号-尝试编号` artifact | 同次编译的目标软件包，含内核模块，保留 30 天 |
-| `openwrt-版本-系列-kernel-modules.tar.zst` Release 附件 | 同次编译的全部 `kmod-*` 包和索引，可解压后配置为本地软件源 |
+| `packages-版本-运行编号-尝试编号` artifact | 同次编译的完整软件包仓库压缩包与清单，保留 30 天 |
+| `openwrt-版本-系列-packages.tar.zst` Release 附件 | 同次编译的全部可选 `kmod-*`、目标专用包、官方源没有的用户态包及其依赖，保留完整 APK / opkg 仓库索引；使用方法见[软件包仓库](docs/customization.md#额外软件包仓库) |
+| `package-plan.json` / `package-inventory.json` Release 附件 | 记录官方索引、实际选择、目标／依赖排除项、已生成包文件与哈希；漏掉任何已选包会阻止发布 |
 | `build-info-版本-运行编号-尝试编号` artifact | 配置、来源提交、补丁摘要及日志，保留 14 天 |
 
 发布前同时验证设备、版本、包管理器、必要运行包、镜像校验和与结构。必须同时生成可通过校验的 sysupgrade 和 factory，才会发布该版本。`SHA256SUMS` 覆盖所有发布附件。
@@ -51,7 +52,7 @@
 
 **factory 不是整盘镜像，也没有验证可由京东原厂网页直接刷入。** 它不包含 GPT、引导程序或 ART 校准数据。必须按已安装 U-Boot／恢复工具支持的方式使用；不要将整个 factory 写入 `0:HLOS` 或传给 `sysupgrade`。本项目的升级检查会拒绝 factory。布局和容量要求见 [硬件说明](docs/hardware.md)。
 
-24.x 与 25.x 之间切换，或从其他固件迁移时，先保存所需设置，升级使用 `sysupgrade -n`，不沿用旧配置和软件源。自编译内核 ABI 不保证与官方仓库一致；额外内核模块优先使用同次构建的 packages，或加入配置重新编译。
+24.x 与 25.x 之间切换，或从其他固件迁移时，先保存所需设置，升级使用 `sysupgrade -n`，不沿用旧配置和软件源。自编译内核 ABI 不保证与官方仓库一致；额外内核模块使用同次构建的 packages。更换固件后同步更换本地包仓库。
 
 ## 项目结构与定制
 
@@ -93,7 +94,9 @@ python3 scripts/build-info.py "$HOME/build/ax1800pro-25" artifacts/25.12 --relea
 python3 scripts/collect-release.py \
   "$HOME/build/ax1800pro-25/bin/targets/qualcommax/ipq60xx" \
   artifacts/25.12/release --release 25.12 \
-  --build-info artifacts/25.12/build-info.json
+  --build-info artifacts/25.12/build-info.json \
+  --package-source "$HOME/build/ax1800pro-25" \
+  --package-archive openwrt-25.12.5-25.12-packages.tar.zst
 ```
 
 `Check project` 工作流执行静态检查及两版真实源码准备、补丁应用、feeds 安装、`make defconfig` 和 fstools 解包打补丁检查；完整固件由 `Build AX1800 Pro` 编译。自动检查不能替代真机启动、网口、双频无线、Overlay 持久化和升级回归验证。
