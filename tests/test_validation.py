@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 DEVICE = "jdcloud_re-ss-01"
 TARGET_OPTION = f"CONFIG_TARGET_qualcommax_ipq60xx_DEVICE_{DEVICE}"
-VERSIONS = {"24.10": "24.10.8", "25.12": "25.12.5"}
+VERSIONS = {"24.10": "24.10.8", "25.12": "25.12.6"}
 # Explicit expectations, independent of the validators' constants.
 PACKAGES = {
     "kmod-qca-nss-dp", "kmod-ath11k-ahb", "ath11k-firmware-ipq6018",

@@ -16,8 +16,8 @@
       "patch_dirs": ["patches/common", "patches/24.10"]
     },
     "25.12": {
-      "version": "25.12.5",
-      "commit": "f0a60eee2fe051741c643ea6118718aae1ef17fb",
+      "version": "25.12.6",
+      "commit": "64900e756efa667774214f9c6b17c113222e01f7",
       "kernel_series": "6.12",
       "package_manager": "apk",
       "config": ["config/ax1800pro.config", "config/25.12.config"],

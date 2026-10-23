@@ -4,7 +4,7 @@
 
 ## 官方源码与移植范围
 
-基础源码同时支持 [OpenWrt v24.10.8](https://github.com/openwrt/openwrt/tree/0b795ce79e23b553aa184080c390f9ce92a2b6d4)（Linux 6.6）和 [OpenWrt v25.12.5](https://github.com/openwrt/openwrt/tree/f0a60eee2fe051741c643ea6118718aae1ef17fb)（Linux 6.12）。两版都有 IPQ60xx 平台支持，但没有 RE-SS-01 profile。版本和完整提交见 [统一锁文件](../sources.lock.json)。
+基础源码同时支持 [OpenWrt v24.10.8](https://github.com/openwrt/openwrt/tree/0b795ce79e23b553aa184080c390f9ce92a2b6d4)（Linux 6.6）和 [OpenWrt v25.12.6](https://github.com/openwrt/openwrt/tree/64900e756efa667774214f9c6b17c113222e01f7)（Linux 6.12.112）。两版都有 IPQ60xx 平台支持，但没有 RE-SS-01 profile。版本和完整提交见 [统一锁文件](../sources.lock.json)。
 
 [共用设备树](../patches/common/) 与 [24.10](../patches/24.10/) / [25.12](../patches/25.12/) 版本补丁增加以下设备支持：
 
@@ -33,7 +33,7 @@ OpenWrt 自带的 `ipq-wifi` 软件包固定了 [qca-wireless](https://git.openw
 | 版本 | qca-wireless 提交 |
 | --- | --- |
 | 24.10.8 | `ec6831a43ff066c9873e7c41fd6f68354bb67b4a` |
-| 25.12.5 | `e20f4c6ff197823762319e4b7e31af01816503cf` |
+| 25.12.5 / 25.12.6 | `e20f4c6ff197823762319e4b7e31af01816503cf` |
 
 两者均包含相同的 `board-jdcloud_re-ss-01.ipq6018`（65640 字节），其 SHA-256 为：
 

@@ -7,9 +7,11 @@
 | 系列 | 锁定版本 | 内核系列 | 包管理器 | 发布镜像 |
 | --- | --- | --- | --- | --- |
 | 24.x | 24.10.8 | Linux 6.6 | opkg | sysupgrade.bin、factory.bin |
-| 25.x | 25.12.5 | Linux 6.12 | apk | sysupgrade.bin、factory.bin |
+| 25.x | 25.12.6 | Linux 6.12 | apk | sysupgrade.bin、factory.bin |
 
 版本、源码提交、配置片段和补丁顺序统一由 [sources.lock.json](sources.lock.json) 管理。核心、官方 feeds 和 Argon 都固定到具体提交。
+
+25.12.6 是 2026 年 10 月 18 日发布的上游稳定版。本次先在提交 `d2f704a` 修复并补编 25.12.5 的完整软件包仓库，再升级到 25.12.6；两个版本分别保留固件、同次构建的软件包和清单，均以稳定 Release 发布。
 
 ## 默认配置
 
@@ -96,7 +98,7 @@ python3 scripts/collect-release.py \
   artifacts/25.12/release --release 25.12 \
   --build-info artifacts/25.12/build-info.json \
   --package-source "$HOME/build/ax1800pro-25" \
-  --package-archive openwrt-25.12.5-25.12-packages.tar.zst
+  --package-archive openwrt-25.12.6-25.12-packages.tar.zst
 ```
 
 `Check project` 工作流执行静态检查及两版真实源码准备、补丁应用、feeds 安装、`make defconfig` 和 fstools 解包打补丁检查；完整固件由 `Build AX1800 Pro` 编译。自动检查不能替代真机启动、网口、双频无线、Overlay 持久化和升级回归验证。

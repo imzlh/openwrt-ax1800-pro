@@ -216,8 +216,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          latest=false
+          if [[ "$SERIES" == 25.12 ]]; then latest=true; fi
           gh release create "ax1800pro-v${VERSION}-r${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" artifacts/release/* \
             --target "$GITHUB_SHA" \
             --title "AX1800 Pro OpenWrt ${VERSION} (r${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT})" \
-            --latest=false \
+            --latest="$latest" \
             --notes "JDCloud RE-SS-01，OpenWrt ${VERSION}，eMMC ext4 Overlay。稳定版；包含 sysupgrade、factory、完整匹配的软件包仓库及漏包校验清单，刷写和软件源配置请参阅仓库 README。"

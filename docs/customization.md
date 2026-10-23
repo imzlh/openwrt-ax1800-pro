@@ -1,6 +1,6 @@
 # 精简配置与默认界面
 
-基础源码使用官方 OpenWrt 24.10.8（Linux 6.6）或 25.12.5（Linux 6.12），保留设备 profile 默认选择的网卡、无线、闪存等驱动，包括官方 `kmod-qca-nss-dp` 以太网驱动；虽然名字带有 NSS，这个包负责网口工作。项目不引入额外的 NSS 加速栈、ECM 或相关加速补丁。设备移植方式见项目 README。
+基础源码使用官方 OpenWrt 24.10.8（Linux 6.6）或 25.12.6（Linux 6.12），保留设备 profile 默认选择的网卡、无线、闪存等驱动，包括官方 `kmod-qca-nss-dp` 以太网驱动；虽然名字带有 NSS，这个包负责网口工作。项目不引入额外的 NSS 加速栈、ECM 或相关加速补丁。设备移植方式见项目 README。
 
 ## 包选择
 
@@ -81,5 +81,6 @@ uci commit argon
 ## 上游核对依据
 
 - [OpenWrt v24.10.8 发布页](https://github.com/openwrt/openwrt/releases/tag/v24.10.8) 与 [固定版本的 feeds.conf.default](https://github.com/openwrt/openwrt/blob/v24.10.8/feeds.conf.default)。
+- [OpenWrt v25.12.6 源码 tag](https://github.com/openwrt/openwrt/tree/64900e756efa667774214f9c6b17c113222e01f7) 与 [固定版本的 feeds.conf.default](https://github.com/openwrt/openwrt/blob/64900e756efa667774214f9c6b17c113222e01f7/feeds.conf.default)。
 - [官方 LuCI 主题列表](https://github.com/openwrt/luci/tree/cac97ed67cfbcad90db49f5f3b1245c2c4cbfae5/themes)、[luci-light 的依赖](https://github.com/openwrt/luci/blob/cac97ed67cfbcad90db49f5f3b1245c2c4cbfae5/collections/luci-light/Makefile) 与 [luci-ssl 的依赖](https://github.com/openwrt/luci/blob/cac97ed67cfbcad90db49f5f3b1245c2c4cbfae5/collections/luci-ssl/Makefile)。
 - [Argon 读取暗色模式的模板](https://github.com/jerrykuku/luci-theme-argon/blob/23c3e525578374d6b20f5e7b93d27874cd01a252/ucode/template/themes/argon/header.ut) 与 [软件包依赖](https://github.com/jerrykuku/luci-theme-argon/blob/23c3e525578374d6b20f5e7b93d27874cd01a252/Makefile)。
